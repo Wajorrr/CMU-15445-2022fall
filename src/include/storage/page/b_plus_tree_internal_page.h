@@ -35,8 +35,6 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeInternalPage : public BPlusTreePage {
  public:
-  BPlusTreeInternalPage(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = INTERNAL_PAGE_SIZE)
-      : page_id_(page_id), parent_page_id_(parent_id), max_size_(max_size), page_type_(IndexPageType::INTERNAL_PAGE) {}
   // must call initialize method after "create" a new node
   void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = INTERNAL_PAGE_SIZE);
 
@@ -46,6 +44,6 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
  private:
   // Flexible array member for page data.
-  MappingType array_[INTERNAL_PAGE_SIZE];
+  MappingType array_[1];
 };
 }  // namespace bustub

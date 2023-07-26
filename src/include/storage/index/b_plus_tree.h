@@ -45,11 +45,30 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto FindLeafPage(const KeyType &key) const -> BPlusTreePage *;
+
+  template <typename T>
+  auto SplitNode(T *node) -> T *;
+
+  void InsertIntoParent(BPlusTreePage *node, const KeyType &key, BPlusTreePage *new_node);
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
+
+  // 删除根节点上的key后需要调整时调用
+  void AdjustRoot(BPlusTreePage *old_root_node);
+
+  template <typename T>
+  void CoalesceOrRedistribute(T *node);
+
+  template <typename T>
+  void Coalesce(T *sibling, T *node, InternalPage *parent, int node_idx);
+
+  template <typename T>
+  void Redistribute(T *sibling_node, T *node, InternalPage *parent_node, int node_idx);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;

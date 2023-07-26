@@ -47,12 +47,33 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = LEAF_PAGE_SIZE);
   // helper methods
   auto GetNextPageId() const -> page_id_t;
+
   void SetNextPageId(page_id_t next_page_id);
+
   auto KeyAt(int index) const -> KeyType;
+
+  auto KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int;
+
+  auto GetItem(int index) -> MappingType &;
+
+  auto GetValue(const KeyType &key, const KeyComparator &comparator, std::vector<ValueType> *result = nullptr) const
+      -> bool;
+
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
+
+  void SplitCopy(BPlusTreeLeafPage *node, int startidx, int num);
+
+  auto RemoveItem(const KeyType &key, KeyComparator &comparator) -> int;
+
+  void MoveAll(BPlusTreeLeafPage *node);
+
+  void MoveFirst(BPlusTreeLeafPage *node);
+
+  void MoveLast(BPlusTreeLeafPage *node);
 
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.
-  MappingType array_[1];
+  MappingType array_[0];
 };
 }  // namespace bustub

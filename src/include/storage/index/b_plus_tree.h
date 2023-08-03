@@ -20,7 +20,7 @@
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
-
+enum Operation { READ, INSERT, DELETE };
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
 /**
@@ -45,10 +45,16 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
-  auto FindLeafPage(const KeyType &key) const -> BPlusTreePage *;
+  auto MaxSize(BPlusTreePage *page) const -> int;
 
-  template <typename T>
-  auto SplitNode(T *node) -> T *;
+  void UnlockAndUnpin(Transaction *transaction, Operation op);
+
+  auto IsSafe(Page *page, Operation op) -> bool;
+
+  auto FindLeafPage(const KeyType &key, int left_right_most = 0) const -> BPlusTreePage *;
+  auto FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction, Operation op) -> Page *;
+
+  auto SplitNode(BPlusTreePage *node, std::pair<KeyType, page_id_t> child_item) -> BPlusTreePage *;
 
   void InsertIntoParent(BPlusTreePage *node, const KeyType &key, BPlusTreePage *new_node);
 
@@ -59,16 +65,14 @@ class BPlusTree {
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
 
   // 删除根节点上的key后需要调整时调用
-  void AdjustRoot(BPlusTreePage *old_root_node);
+  void AdjustRoot(BPlusTreePage *old_root_node, Transaction *transaction);
 
-  template <typename T>
-  void CoalesceOrRedistribute(T *node);
+  void CoalesceOrRedistribute(BPlusTreePage *page, Transaction *transaction);
 
-  template <typename T>
-  void Coalesce(T *sibling, T *node, InternalPage *parent, int node_idx);
+  void Coalesce(BPlusTreePage *sibling, BPlusTreePage *node, InternalPage *parent, int node_idx,
+                Transaction *transaction);
 
-  template <typename T>
-  void Redistribute(T *sibling_node, T *node, InternalPage *parent_node, int node_idx);
+  void Redistribute(BPlusTreePage *sibling_node, BPlusTreePage *node, InternalPage *parent_node, int node_idx);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
@@ -108,6 +112,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  std::mutex tree_latch_;
 };
 
 }  // namespace bustub

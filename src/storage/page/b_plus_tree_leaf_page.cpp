@@ -79,20 +79,19 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetValue(const KeyType &key, const KeyComparator &comparator,
                                           std::vector<ValueType> *result) const -> bool {
   int idx = KeyIndex(key, comparator);
-  if (comparator(array_[idx].first, key) != 0) {  // array中找不到给定的key值
-    return false;
-  }
-  if (result == nullptr) {  // array中有给定的key值，但不需要返回value列表
+  // 返回value列表
+  if (idx < GetSize() && comparator(array_[idx].first, key) == 0) {
+    if (result == nullptr) {
+      return true;
+    }
+    while (idx < GetSize() && comparator(array_[idx].first, key) == 0) {
+      result->push_back(array_[idx++].second);
+      // std::cout << array_[idx - 1].second << " ";
+    }
     return true;
   }
-  // 返回value列表
-  // std::cout << "get value:key=" << key << "\n";
-  while (idx < GetSize() && comparator(array_[idx].first, key) == 0) {
-    result->push_back(array_[idx++].second);
-    // std::cout << array_[idx - 1].second << " ";
-  }
   // std::cout << "\n";
-  return true;
+  return false;
 }
 
 // 向leaf node中插入kv对
@@ -118,6 +117,8 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SplitCopy(BPlusTreeLeafPage *node, int startidx
   for (int i = 0; i < num; i++) {
     array_[i] = node->array_[startidx + i];
   }
+  node->IncreaseSize(-1 * num);
+  IncreaseSize(num);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -127,8 +128,8 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveItem(const KeyType &key, KeyComparator &c
     for (int i = idx; i < GetSize() - 1; i++) {
       array_[i] = array_[i + 1];
     }
+    IncreaseSize(-1);
   }
-  IncreaseSize(-1);
   return GetSize();
 }
 

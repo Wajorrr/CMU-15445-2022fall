@@ -71,9 +71,11 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
   void MoveLast(BPlusTreeLeafPage *node);
 
+  void Print();
+
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.
-  MappingType array_[0];
+  MappingType array_[1];
 };
 }  // namespace bustub

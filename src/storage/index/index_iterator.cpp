@@ -12,33 +12,43 @@ namespace bustub {
  * set your own input parameters
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator(B_PLUS_TREE_LEAF_PAGE_TYPE *left_most_leaf, int index, BufferPoolManager *bpm)
-    : cur_leaf_page_(left_most_leaf), index_(index), buffer_pool_manager_(bpm) {}
+INDEXITERATOR_TYPE::IndexIterator() {}
+
+INDEX_TEMPLATE_ARGUMENTS
+INDEXITERATOR_TYPE::IndexIterator(Page *leaf_page, int index, BufferPoolManager *bpm)
+    : cur_leaf_page_(leaf_page), index_(index), buffer_pool_manager_(bpm) {}
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() {
   if (cur_leaf_page_ != nullptr) {
+    cur_leaf_page_->RUnlatch();
     buffer_pool_manager_->UnpinPage(cur_leaf_page_->GetPageId(), false);
   }
 };  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  return cur_leaf_page_->GetNextPageId() == INVALID_PAGE_ID && index_ == cur_leaf_page_->GetSize();
+  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
+  return cur_leaf_node->GetNextPageId() == INVALID_PAGE_ID && index_ == cur_leaf_node->GetSize();
 }
 
 INDEX_TEMPLATE_ARGUMENTS auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
-  return cur_leaf_page_->GetItem(index_);
+  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
+  return cur_leaf_node->GetItem(index_);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   index_++;
-  if (index_ == cur_leaf_page_->GetSize() &&
-      cur_leaf_page_->GetNextPageId() != INVALID_PAGE_ID) {  // 到达一个page的末尾了
-    page_id_t next_page_id = cur_leaf_page_->GetNextPageId();
+  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
+  if (index_ == cur_leaf_node->GetSize() &&
+      cur_leaf_node->GetNextPageId() != INVALID_PAGE_ID) {  // 到达一个page的末尾了
+    page_id_t next_page_id = cur_leaf_node->GetNextPageId();
+    auto next_page = buffer_pool_manager_->FetchPage(next_page_id);
+    next_page->RLatch();
+    cur_leaf_page_->RUnlatch();
     buffer_pool_manager_->UnpinPage(cur_leaf_page_->GetPageId(), false);
-    cur_leaf_page_ = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(buffer_pool_manager_->FetchPage(next_page_id));
+    cur_leaf_page_ = next_page;
     index_ = 0;
   }
   return *this;

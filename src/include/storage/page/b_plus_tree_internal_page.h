@@ -44,15 +44,18 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   auto ValueAt(int index) const -> ValueType;
 
+  void SetValueAt(int index, const ValueType &value);
+
   auto ValueIdx(ValueType value) const -> int;
 
-  auto Search(const KeyType &key, const KeyComparator &comparator) const -> ValueType;
+  auto Search(const KeyType &key, const KeyComparator &comparator) const -> int;
 
-  void SplitCopy(BPlusTreeInternalPage *node, int startidx, int num, BufferPoolManager *buffer_pool_manager_);
+  void SplitCopy(BPlusTreeInternalPage *node, MappingType child_item, KeyComparator comparator,
+                 BufferPoolManager *buffer_pool_manager_);
 
   void LinkToNewRoot(ValueType node_id, KeyType key, ValueType new_node_id);
 
-  void NewNodeInsert(ValueType node_id, KeyType key, ValueType new_node_id);
+  void NewNodeInsert(KeyType key, ValueType new_node_id, const KeyComparator &comparator);
 
   void Remove(int idx);
 
@@ -64,7 +67,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
  private:
   // Flexible array member for page data.
-  MappingType array_[0];
+  MappingType array_[1];
   // internal node的中的节点包含keys和children，以pair<key,value>形式存储在这个Flexible array中
   // 由于internal node中的keys和children的关系是children数量=keys数量+1，因此array_中第一个元素的first值无含义
   // 即array_[1~n-1].first代表n-1个key值，array_[0~n-1].second代表n个chilren

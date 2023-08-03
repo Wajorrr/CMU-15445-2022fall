@@ -53,6 +53,11 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { return array_[index].second; }
 
 INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) -> void {
+  array_[index].second = value;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIdx(ValueType value) const -> int {
   for (int i = 0; i < this->GetSize(); i++) {
     if (array_[i].second == value) {
@@ -62,9 +67,9 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIdx(ValueType value) const -> int {
   return 0;
 }
 
-// 给定key，返回其所对应的位置的Value值
+// 给定key，返回其所对应的位置
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Search(const KeyType &key, const KeyComparator &comparator) const -> ValueType {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Search(const KeyType &key, const KeyComparator &comparator) const -> int {
   // 给定key，返回key所在/应插入的child,即找到第一个大于key的array_[x].first，返回x-1对应的child(实际返回的就是page_id)
   int l = 0;
   int r = GetSize() - 1;  // 初始区间[l,r]=[0,n-1]
@@ -76,35 +81,57 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Search(const KeyType &key, const KeyCompara
       r = mid - 1;
     }
   }
-  return array_[l].second;
+  return l;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SplitCopy(BPlusTreeInternalPage *node, int startidx, int num,
-                                               BufferPoolManager *buffer_pool_manager_) {
-  for (int i = 0; i < num; i++) {
-    array_[i] = node->array_[startidx + i];
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SplitCopy(BPlusTreeInternalPage *node, MappingType child_item,
+                                               KeyComparator comparator, BufferPoolManager *buffer_pool_manager_) {
+  // 移动一半kv对到新的node中
+  int move_num =
+      (node->GetSize() + 2) / 2;  // 要分出去的kv对数量 //这里还有一个节点没插入(先插入再分裂的话会越界)，要另外+1
+  // 由于是flexible数组，因此应该从尾部分出一半kv对，即分出一个新的右边internal node出来
+  // 由于internal node的第一个kv对中的key默认被视为不使用，因此直接移动一半kv对即可，不需要对第一个key进行删除
+  //  这样就可以直接通过减少原node的size来达到删除效果
+
+  int start_idx = node->GetSize() + 1 - move_num;
+  int child_idx = node->Search(child_item.first, comparator) + 1;
+  for (int i = 0; i < move_num; i++) {
+    if (start_idx + i < child_idx) {
+      array_[i] = node->array_[start_idx + i];
+    } else if (start_idx + i == child_idx) {
+      array_[i] = child_item;
+    } else {
+      array_[i] = node->array_[start_idx + i - 1];
+    }
     // 注意，这里和leaf node不一样了
     // 将internal node中的kv对移动后，需要遍历每个v(child node)，将每个儿子节点的父节点id更新
-    auto child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(array_[i].second));
+    auto child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(array_[i].second)->GetData());
     child_page->SetParentPageId(this->GetPageId());
-    buffer_pool_manager_->UnpinPage(array_[i].second,
+    buffer_pool_manager_->UnpinPage(child_page->GetPageId(),
                                     true);  // 对child page进行了更新，设置dirty标记为true
   }
+  node->IncreaseSize(1 - move_num);  // 原node size减少
+  if (child_idx < start_idx) {
+    node->NewNodeInsert(child_item.first, child_item.second, comparator);
+  }
+  IncreaseSize(move_num);
 }
+
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::LinkToNewRoot(ValueType node_id, KeyType key, ValueType new_node_id) {
-  array_[0].second = node_id;
-  array_[1].first = key;
-  array_[1].second = new_node_id;
+  SetValueAt(0, node_id);
+  SetKeyAt(1, key);
+  SetValueAt(1, new_node_id);
   SetSize(2);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::NewNodeInsert(ValueType node_id, KeyType key, ValueType new_node_id) {
-  int idx = ValueIdx(node_id);
-  for (int i = GetSize(); i > idx + 1; i--) {
-    array_[i] = array_[i - 1];
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::NewNodeInsert(KeyType key, ValueType new_node_id,
+                                                   const KeyComparator &comparator) {
+  int idx = Search(key, comparator);
+  for (int i = GetSize() - 1; i > idx; i--) {
+    array_[i + 1] = array_[i];
   }
   array_[idx + 1] = MappingType{key, new_node_id};
 }
@@ -126,7 +153,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAll(BPlusTreeInternalPage *node, const 
   for (int i = 0; i < num; i++) {
     node->array_[startidx + i] = array_[i];
     // 还要更新所有子节点的parent_page_id
-    auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[i].second));
+    auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[i].second)->GetData());
     child_page->SetParentPageId(node->GetPageId());
     buffer_pool_manager->UnpinPage(array_[i].second, true);
   }
@@ -137,9 +164,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirst(BPlusTreeInternalPage *node, cons
                                                BufferPoolManager *buffer_pool_manager) {
   array_[0].first = first_key;
   node->array_[node->GetSize()] = array_[0];
-  auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[0].second));
+  auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[0].second)->GetData());
   child_page->SetParentPageId(node->GetPageId());
-  buffer_pool_manager->UnpinPage(child_page->GetPageId(), true);
+  buffer_pool_manager->UnpinPage(array_[0].second, true);
   for (int i = 0; i < GetSize() - 1; i++) {
     array_[i] = array_[i + 1];
   }
@@ -153,9 +180,10 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLast(BPlusTreeInternalPage *node, const
     node->array_[i + 1] = node->array_[i];
   }
   node->array_[0] = array_[GetSize() - 1];
-  auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[GetSize() - 1].second));
+  auto *child_page =
+      reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[GetSize() - 1].second)->GetData());
   child_page->SetParentPageId(node->GetPageId());
-  buffer_pool_manager->UnpinPage(child_page->GetPageId(), true);
+  buffer_pool_manager->UnpinPage(array_[GetSize() - 1].second, true);
 }
 
 // valuetype for internalNode should be page_id_t

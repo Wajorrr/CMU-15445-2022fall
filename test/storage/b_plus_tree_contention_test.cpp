@@ -74,12 +74,14 @@ bool BPlusTreeLockBenchmarkCall(size_t num_threads, int leaf_node_size, bool wit
   return success;
 }
 
-TEST(BPlusTreeTest, DISABLED_BPlusTreeContentionBenchmark) {  // NOLINT
+TEST(BPlusTreeTest, BPlusTreeContentionBenchmark) {  // NOLINT
   std::vector<size_t> time_ms_with_mutex;
   std::vector<size_t> time_ms_wo_mutex;
+  std::cout << "111\n";
   for (size_t iter = 0; iter < 20; iter++) {
     bool enable_mutex = iter % 2 == 0;
     auto clock_start = std::chrono::system_clock::now();
+    std::cout << "222\n";
     ASSERT_TRUE(BPlusTreeLockBenchmarkCall(32, 2, enable_mutex));
     auto clock_end = std::chrono::system_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(clock_end - clock_start);
@@ -114,7 +116,7 @@ TEST(BPlusTreeTest, DISABLED_BPlusTreeContentionBenchmark) {  // NOLINT
             << std::endl;
 }
 
-TEST(BPlusTreeTest, DISABLED_BPlusTreeContentionBenchmark2) {  // NOLINT
+TEST(BPlusTreeTest, BPlusTreeContentionBenchmark2) {  // NOLINT
   std::vector<size_t> time_ms_with_mutex;
   std::vector<size_t> time_ms_wo_mutex;
   for (size_t iter = 0; iter < 20; iter++) {

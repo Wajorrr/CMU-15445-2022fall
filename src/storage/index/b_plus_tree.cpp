@@ -36,7 +36,8 @@ auto BPLUSTREE_TYPE::IsSafe(Page *page, Operation op) -> bool {  // 判断节点
     return node->GetSize() < MaxSize(node);
   }
   // 删除操作(读操作不需要判断节点是否safe)
-  if (node->GetPageId() == root_page_id_) {  // 当前节点为root节点
+  // if (node->GetPageId() == root_page_id_) {  // 当前节点为root节点
+  if (node->GetParentPageId() == INVALID_PAGE_ID) {  // 当前节点为root节点
     if (node->IsLeafPage()) {
       return true;  // root节点且leaf节点，直接删除即可，safe
     }
@@ -391,7 +392,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::CoalesceOrRedistribute(Page *page, Transaction *transaction) {
   auto node = reinterpret_cast<BPlusTreePage *>(page->GetData());
 
-  if (node->GetPageId() == root_page_id_) {  // 根节点的情况单独考虑，这里也是递归更新的终点
+  if (node->GetParentPageId() == INVALID_PAGE_ID) {  // 根节点的情况单独考虑，这里也是递归更新的终点
     // std::cout << "AdjustRoot\n";
 
     AdjustRoot(page, transaction);
@@ -527,10 +528,10 @@ void BPLUSTREE_TYPE::AdjustRoot(Page *old_root_page, Transaction *transaction) {
     page_id_t new_root_id = internal_page->ValueAt(0);
     internal_page->IncreaseSize(-1);
 
-    // auto *new_root_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(new_root_id)->GetData());
-    // new_root_page->SetParentPageId(INVALID_PAGE_ID);
+    auto *new_root_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(new_root_id)->GetData());
+    new_root_page->SetParentPageId(INVALID_PAGE_ID);
     root_page_id_ = new_root_id;
-    // buffer_pool_manager_->UnpinPage(new_root_id, true);
+    buffer_pool_manager_->UnpinPage(new_root_id, true);
     UpdateRootPageId(false);
     // std::cout << "root updated,size=" << new_root_page->GetSize() << "\n\n\n";
 

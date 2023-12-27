@@ -30,9 +30,9 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
   SetPageId(page_id);
   SetParentPageId(parent_id);
+  SetNextPageId(INVALID_PAGE_ID);
   SetMaxSize(max_size);
   SetPageType(IndexPageType::LEAF_PAGE);
-  SetNextPageId(INVALID_PAGE_ID);
   SetSize(0);
 }
 
@@ -55,6 +55,39 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
   return array_[index].first;
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType {
+  // replace with your own code
+  return array_[index].second;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(MappingType value, int index, const KeyComparator &keyComparator) -> bool {
+  if (index < GetSize() && keyComparator(value.first, array_[index].first) == 0) {
+    return false;
+  }
+  for (int i = GetSize() - 1; i >= index; i--) {
+    array_[i + 1] = array_[i];
+  }
+  array_[index] = value;
+  IncreaseSize(1);
+  return true;
+}
+// 向leaf node中插入kv对
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType key, const ValueType value, const KeyComparator &comparator)
+    -> int {
+  int idx = KeyIndex(key, comparator);  // 找到要插入的下标
+  // std::cout << "insert idx:" << idx << "\n";
+  for (int i = GetSize(); i >= idx + 1; i--) {  // 后面的元素整体后移一位
+    array_[i] = array_[i - 1];
+  }
+  array_[idx] = MappingType{key, value};
+  IncreaseSize(1);
+  // std::cout << "inserted: key-{" << key << "} value-{" << value << "} getsize-" << GetSize() << "\n";
+  return GetSize();
+}
+
 // 给定key，返回其所对应的位置下标
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int {
@@ -70,9 +103,80 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparato
   }
   return l;
 }
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Break(Page *bother_page) -> void {
+  int mid = GetSize() / 2;
+
+  auto leaf_bother_page =
+      reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(bother_page->GetData());
+  for (int i = mid, j = 0; i < GetMaxSize(); i++, j++) {
+    leaf_bother_page->array_[j] = array_[i];
+    IncreaseSize(-1);
+    leaf_bother_page->IncreaseSize(1);
+  }
+  leaf_bother_page->next_page_id_ = next_page_id_;
+  SetNextPageId(bother_page->GetPageId());
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) -> MappingType & { return array_[index]; }
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::Remove(const KeyType &key, int index,
+                                                                  const KeyComparator &keyComparator) -> bool {
+  if (keyComparator(array_[index].first, key) != 0) {
+    return false;
+  }
+
+  for (; index < GetSize() - 1; index++) {
+    array_[index] = array_[index + 1];
+  }
+  IncreaseSize(-1);
+  return true;
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::Delete(const KeyType &key,
+                                                                  const KeyComparator &keyComparator) -> bool {
+  int index = KeyIndex(key, keyComparator);
+  if (index >= GetSize() || keyComparator(KeyAt(index), key) != 0) {
+    return false;
+  }
+  for (int i = index + 1; i < GetSize(); i++) {
+    array_[i - 1] = array_[i];
+  }
+  IncreaseSize(-1);
+  return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::Merge(Page *right_page,
+                                                                 BufferPoolManager *buffer_pool_manager_) -> void {
+  auto right = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(right_page->GetData());
+  for (int i = GetSize(), j = 0; j < right->GetSize(); j++, i++) {
+    array_[i] = std::make_pair(right->KeyAt(j), right->ValueAt(j));
+    IncreaseSize(1);
+  }
+  right->SetSize(0);
+  right_page->WUnlatch();
+  buffer_pool_manager_->UnpinPage(right->GetPageId(), true);
+  buffer_pool_manager_->DeletePage(right->GetPageId());
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::InsertFirst(const KeyType &key, const ValueType &value)
+    -> void {
+  for (int i = GetSize(); i > 0; i--) {
+    array_[i] = array_[i - 1];
+  }
+  array_[0] = std::make_pair(key, value);
+  IncreaseSize(1);
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::InsertLast(const KeyType &key, const ValueType &value)
+    -> void {
+  array_[GetSize()] = std::make_pair(key, value);
+  IncreaseSize(1);
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::GetPair(int index) -> std::pair<KeyType, ValueType> & {
+  return array_[index];
+}
 
 // 给定key，查找是否存在相应的kv对，没找到则返回false，result返回key索引的所有value值
 INDEX_TEMPLATE_ARGUMENTS
@@ -94,31 +198,16 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetValue(const KeyType &key, const KeyComparato
   return false;
 }
 
-// 向leaf node中插入kv对
-INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator)
-    -> int {
-  if (GetSize() == GetMaxSize()) {
-    // std::cout << "leaf_page Insert: size=" << GetSize() << ", max_size=" << GetMaxSize() << std::endl;
-  }
-  int idx = KeyIndex(key, comparator);  // 找到要插入的下标
-  // std::cout << "insert idx:" << idx << "\n";
-  for (int i = GetSize(); i >= idx; i--) {  // 后面的元素整体后移一位
-    array_[i] = array_[i - 1];
-  }
-  array_[idx] = MappingType{key, value};
-  IncreaseSize(1);
-  // std::cout << "inserted: key-{" << key << "} value-{" << value << "} getsize-" << GetSize() << "\n";
-  return GetSize();
-}
-
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::SplitCopy(BPlusTreeLeafPage *node, int startidx, int num) {
   for (int i = 0; i < num; i++) {
     array_[i] = node->array_[startidx + i];
+    // std::cout << i + startidx << " " << node->array_[startidx + i].first << " " << node->array_[startidx + i].second
+    // << "\n";
+    // std::cout << i << " " << array_[i].first << " " << array_[i].second << "\n";
   }
-  node->IncreaseSize(-1 * num);
   IncreaseSize(num);
+  node->IncreaseSize(-1 * num);
 }
 
 INDEX_TEMPLATE_ARGUMENTS

@@ -12,8 +12,8 @@
 
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
-
 #include "concurrency/transaction.h"
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
@@ -44,41 +44,37 @@ class BPlusTree {
 
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
-
   auto MaxSize(BPlusTreePage *page) const -> int;
-
-  void UnlockAndUnpin(Transaction *transaction, Operation op);
-
-  auto IsSafe(Page *page, Operation op) -> bool;
-
-  auto FindLeafPage(const KeyType &key, int left_right_most = 0) const -> BPlusTreePage *;
-  auto FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction, Operation op) -> Page *;
-
-  auto SplitNode(BPlusTreePage *node, std::pair<KeyType, page_id_t> child_item) -> BPlusTreePage *;
-
-  void InsertIntoParent(BPlusTreePage *node, const KeyType &key, BPlusTreePage *new_node);
-
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  auto DeleteEntry(Page *&page, const KeyType &key) -> void;
+  auto DeleteEntryRW(Page *&page, const KeyType &key, Transaction *transaction) -> void;
+  // 删除根节点上的key后需要调整时调用
+  void AdjustRoot(Page *old_root_node, Transaction *transaction);
+
+  void CoalesceOrRedistribute(Page *node, Transaction *transaction);
+
+  void Coalesce(Page *sibling_page, Page *page, InternalPage *parent_node, int node_idx, Transaction *transaction);
+
+  void Redistribute(Page *sibling_page, Page *page, InternalPage *parent_node, int node_idx, Transaction *transaction);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
 
-  // 删除根节点上的key后需要调整时调用
-  void AdjustRoot(BPlusTreePage *old_root_node, Transaction *transaction);
-
-  void CoalesceOrRedistribute(BPlusTreePage *page, Transaction *transaction);
-
-  void Coalesce(BPlusTreePage *sibling, BPlusTreePage *node, InternalPage *parent, int node_idx,
-                Transaction *transaction);
-
-  void Redistribute(BPlusTreePage *sibling_node, BPlusTreePage *node, InternalPage *parent_node, int node_idx);
-
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
+  auto FindLeafPage(const KeyType &key) -> Page *;
+  auto FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction, Operation op) -> Page *;
+  auto IsSafe(Page *page, Operation op) -> bool;
+  auto InsertInParent(Page *page_leaf, const KeyType &key, Page *page_bother) -> void;
+  auto InsertIntoParent(Page *page_leaf, const KeyType &key, Page *page_bother) -> void;
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
+  auto UnlockAndUnpin(Transaction *transaction, Operation op) -> void;
+
+  auto SplitNode(BPlusTreePage *node, std::pair<KeyType, page_id_t> child_item) -> BPlusTreePage *;
+  void InsertIntoParent(BPlusTreePage *node, const KeyType &key, BPlusTreePage *new_node);
 
   // index iterator
   auto Begin() -> INDEXITERATOR_TYPE;

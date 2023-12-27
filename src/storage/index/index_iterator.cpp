@@ -12,47 +12,50 @@ namespace bustub {
  * set your own input parameters
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator() {}
+INDEXITERATOR_TYPE::IndexIterator() : page_id_(INVALID_PAGE_ID) {}
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator(Page *leaf_page, int index, BufferPoolManager *bpm)
-    : cur_leaf_page_(leaf_page), index_(index), buffer_pool_manager_(bpm) {}
-
-INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::~IndexIterator() {
-  if (cur_leaf_page_ != nullptr) {
-    cur_leaf_page_->RUnlatch();
-    buffer_pool_manager_->UnpinPage(cur_leaf_page_->GetPageId(), false);
-  }
-};  // NOLINT
+INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
-  return cur_leaf_node->GetNextPageId() == INVALID_PAGE_ID && index_ == cur_leaf_node->GetSize();
+  auto curr_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(curr_page_->GetData());
+  return static_cast<bool>(index_ == curr_node->GetSize() && curr_node->GetNextPageId() == INVALID_PAGE_ID);
 }
 
-INDEX_TEMPLATE_ARGUMENTS auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
-  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
-  return cur_leaf_node->GetItem(index_);
+INDEX_TEMPLATE_ARGUMENTS
+auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
+  auto curr_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(curr_page_->GetData());
+  return curr_node->GetPair(index_);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   index_++;
-  auto cur_leaf_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(cur_leaf_page_->GetData());
-  if (index_ == cur_leaf_node->GetSize() &&
-      cur_leaf_node->GetNextPageId() != INVALID_PAGE_ID) {  // 到达一个page的末尾了
-    page_id_t next_page_id = cur_leaf_node->GetNextPageId();
-    auto next_page = buffer_pool_manager_->FetchPage(next_page_id);
+  auto curr_node = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(curr_page_->GetData());
+  if (index_ == curr_node->GetSize() && curr_node->GetNextPageId() != INVALID_PAGE_ID) {
+    // std::cout << "not reach end!\n\n";
+    auto next_page = buffer_pool_manager_->FetchPage(curr_node->GetNextPageId());
     next_page->RLatch();
-    cur_leaf_page_->RUnlatch();
-    buffer_pool_manager_->UnpinPage(cur_leaf_page_->GetPageId(), false);
-    cur_leaf_page_ = next_page;
+    curr_page_->RUnlatch();
+    buffer_pool_manager_->UnpinPage(curr_node->GetPageId(), false);
+    curr_page_ = next_page;
+    page_id_ = curr_page_->GetPageId();
     index_ = 0;
   }
+  if (index_ == curr_node->GetSize() && curr_node->GetNextPageId() == INVALID_PAGE_ID) {
+    // std::cout << "end!\n";
+    curr_page_->RUnlatch();
+    buffer_pool_manager_->UnpinPage(curr_node->GetPageId(), false);
+  }
+
   return *this;
 }
+
+INDEX_TEMPLATE_ARGUMENTS
+IndexIterator<KeyType, ValueType, KeyComparator>::IndexIterator(Page *curr_page, int index, page_id_t page_id,
+                                                                BufferPoolManager *bufferPoolManager)
+    : page_id_(page_id), curr_page_(curr_page), index_(index), buffer_pool_manager_(bufferPoolManager) {}
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 

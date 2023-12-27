@@ -42,8 +42,6 @@ enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
  */
 class BPlusTreePage {
  public:
-  // BPlusTreePage() { mutex_ = std::make_unique<std::mutex>(new std::mutex()); }
-
   auto IsLeafPage() const -> bool;
   auto IsRootPage() const -> bool;
   void SetPageType(IndexPageType page_type);
@@ -64,12 +62,6 @@ class BPlusTreePage {
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
 
-  // void RLock();
-  // void RUnlock();
-  // void WLock();
-  // void WUnlock();
-  // std::mutex mutex_;
-
  private:
   // member variable, attributes that both internal and leaf page share
   IndexPageType page_type_ __attribute__((__unused__));
@@ -78,12 +70,6 @@ class BPlusTreePage {
   int max_size_ __attribute__((__unused__));
   page_id_t parent_page_id_ __attribute__((__unused__));
   page_id_t page_id_ __attribute__((__unused__));
-
-  // bool writer_entered_ = false;
-  // int reader_count_ = 0;
-  // static const int MAX_READER_COUNT = 0x3f3f3f3f;
-  // std::condition_variable reader_;
-  // std::condition_variable writer_;
 };
 
 }  // namespace bustub

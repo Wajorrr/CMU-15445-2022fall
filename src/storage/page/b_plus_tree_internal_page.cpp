@@ -50,21 +50,190 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { a
  * offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { return array_[index].second; }
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
+  if (index >= 0 && index < GetSize()) {
+    return array_[index].second;
+  } else {
+    return ValueType{-1};
+  }
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyComparator &keyComparator) -> ValueType {
+  for (int i = 1; i < GetSize(); i++) {
+    if (keyComparator(array_[i].first, key) > 0) {
+      return array_[i - 1].second;
+    }
+  }
+  return array_[GetSize() - 1].second;
+}
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) -> void {
   array_[index].second = value;
 }
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const MappingType &value, const KeyComparator &keyComparator) -> void {
+  for (int i = GetSize() - 1; i > 0; i--) {
+    if (keyComparator(array_[i].first, value.first) > 0) {
+      array_[i + 1] = array_[i];
+    } else {
+      array_[i + 1] = value;
+      IncreaseSize(1);
+      return;
+    }
+  }
+  SetValueAt(1, value.second);
+  SetKeyAt(1, value.first);
+
+  IncreaseSize(1);
+}
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIdx(ValueType value) const -> int {
-  for (int i = 0; i < this->GetSize(); i++) {
-    if (array_[i].second == value) {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Delete(const KeyType &key, const KeyComparator &keyComparator) -> bool {
+  int index = KeyIndex(key, keyComparator);
+  if (index >= GetSize() || keyComparator(KeyAt(index), key) != 0) {
+    return false;
+  }
+  for (int i = index + 1; i < GetSize(); i++) {
+    array_[i - 1] = array_[i];
+  }
+  IncreaseSize(-1);
+  return true;
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetBotherPage(page_id_t child_page_id, Page *&bother_page, KeyType &key,
+                                                   bool &ispre, BufferPoolManager *buffer_pool_manager_) -> void {
+  int i;
+  for (i = 0; i < GetSize(); i++) {  // 儿子节点的index
+    if (ValueAt(i) == child_page_id) {
+      break;
+    }
+  }
+  // 获取兄弟节点的index
+  if ((i - 1) >= 0) {
+    bother_page = buffer_pool_manager_->FetchPage(ValueAt(i - 1));
+    bother_page->WLatch();  // 上读锁
+    key = KeyAt(i);         // 儿子节点的key
+    ispre = true;
+    return;
+  }
+  bother_page = buffer_pool_manager_->FetchPage(ValueAt(i + 1));
+  bother_page->WLatch();
+  key = KeyAt(i + 1);
+  ispre = false;
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetBotherPageRW(page_id_t child_page_id, Page *&bother_page, KeyType &key,
+                                                     bool &ispre, BufferPoolManager *buffer_pool_manager_,
+                                                     Transaction *transaction) -> void {
+  int i;
+  for (i = 0; i < GetSize(); i++) {
+    if (ValueAt(i) == child_page_id) {
+      break;
+    }
+  }
+  if ((i - 1) >= 0) {
+    bother_page = buffer_pool_manager_->FetchPage(ValueAt(i - 1));
+    bother_page->WLatch();
+    transaction->AddIntoPageSet(bother_page);
+    key = KeyAt(i);
+    ispre = true;
+    return;
+  }
+  bother_page = buffer_pool_manager_->FetchPage(ValueAt(i + 1));
+  bother_page->WLatch();
+  transaction->AddIntoPageSet(bother_page);
+  key = KeyAt(i + 1);
+  ispre = false;
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Merge(const KeyType &key, Page *right_page,
+                                           BufferPoolManager *buffer_pool_manager_) -> void {
+  auto right = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(right_page->GetData());
+  int size = GetSize();
+  array_[GetSize()] = std::make_pair(key, right->ValueAt(0));
+  IncreaseSize(1);
+  /*page_id_t child_page_id = right->ValueAt(0);
+  auto child_page = buffer_pool_manager_->FetchPage(child_page_id);
+  auto child_node = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(child_page->GetData());
+  child_node->SetParentPageId(GetPageId());
+  buffer_pool_manager_->UnpinPage(child_page_id, true);*/
+  for (int i = GetSize(), j = 1; j < right->GetSize(); i++, j++) {
+    array_[i] = std::make_pair(right->KeyAt(j), right->ValueAt(j));
+    IncreaseSize(1);
+    /*child_page_id = right->ValueAt(j);
+    child_page = buffer_pool_manager_->FetchPage(child_page_id);
+    child_node = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(child_page->GetData());
+    child_node->SetParentPageId(GetPageId());
+    buffer_pool_manager_->UnpinPage(child_page_id, true);*/
+  }
+  // right->SetSize(0);
+  // right_page->WUnlatch();
+  right_page->WUnlatch();
+  buffer_pool_manager_->UnpinPage(right->GetPageId(), true);
+  buffer_pool_manager_->DeletePage(right->GetPageId());
+  for (int i = size; i < GetSize(); i++) {
+    page_id_t child_page_id = ValueAt(i);
+    auto child_page = buffer_pool_manager_->FetchPage(child_page_id);
+    auto child_node = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(child_page->GetData());
+    child_node->SetParentPageId(GetPageId());
+    buffer_pool_manager_->UnpinPage(child_page_id, true);
+  }
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &keyComparator) const -> int {
+  /*for (int i = 1; i < GetSize(); i++) {
+    if (keyComparator(array_[i].first, key) >= 0) {
       return i;
     }
   }
-  return 0;
+  return GetMaxSize();*/
+  int l = 1;
+  int r = GetSize();
+  if (l >= r) {
+    return GetSize();
+  }
+  while (l < r) {
+    int mid = (l + r) / 2;
+    if (keyComparator(array_[mid].first, key) < 0) {
+      l = mid + 1;
+    } else {
+      r = mid;
+    }
+  }
+  return l;
+}
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertFirst(const KeyType &key, const ValueType &value) -> void {
+  for (int i = GetSize(); i > 0; i--) {
+    array_[i] = array_[i - 1];
+  }
+
+  SetValueAt(0, value);
+  SetKeyAt(1, key);
+  IncreaseSize(1);
+}
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLast(BPlusTreeInternalPage *node, const KeyType first_key,
+                                              BufferPoolManager *buffer_pool_manager) {
+  node->array_[0].first = first_key;
+  for (int i = 0; i < node->GetSize(); i++) {
+    node->array_[i + 1] = node->array_[i];
+  }
+  node->array_[0] = array_[GetSize() - 1];
+  auto child_page = buffer_pool_manager->FetchPage(array_[GetSize() - 1].second);
+  auto child_node = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
+  child_node->SetParentPageId(node->GetPageId());
+  buffer_pool_manager->UnpinPage(child_page->GetPageId(), true);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::DeleteFirst() -> void {
+  for (int i = 1; i < GetSize(); i++) {
+    array_[i - 1] = array_[i];
+  }
+  IncreaseSize(-1);
 }
 
 // 给定key，返回其所对应的位置
@@ -83,7 +252,66 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Search(const KeyType &key, const KeyCompara
   }
   return l;
 }
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Break(const KeyType &key, Page *page_bother, Page *page_parent_page,
+                                           const KeyComparator &keyComparator, BufferPoolManager *buffer_pool_manager_)
+    -> void {
+  auto *tmp = static_cast<MappingType *>(malloc(sizeof(MappingType) * (GetMaxSize() + 1)));
 
+  int ii = 0;
+
+  for (; ii < GetMaxSize(); ii++) {
+    tmp[ii] = array_[ii];
+  }
+
+  int child_idx = Search(key, keyComparator);
+  for (ii = GetMaxSize() - 1; ii > 0; ii--) {
+    if (ii > child_idx) {
+      tmp[ii + 1] = tmp[ii];
+    } else {
+      tmp[ii + 1] = std::make_pair(key, page_bother->GetPageId());
+      break;
+    }
+  }
+  if (ii == 0) {
+    tmp[1] = std::make_pair(key, page_bother->GetPageId());
+  }
+
+  int move_num = (GetSize() + 2) / 2;
+  int mid = GetSize() + 1 - move_num;
+  int start_idx = mid;
+  auto page_parent_node = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(page_parent_page->GetData());
+  auto page_bother_node = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(page_bother->GetData());
+  page_bother_node->SetParentPageId(GetPageId());
+  // IncreaseSize(1);
+
+  child_idx++;
+  for (int i = 0; i < move_num; i++) {
+    if (start_idx + i < child_idx) {
+      page_parent_node->array_[i] = array_[start_idx + i];
+    } else if (start_idx + i == child_idx) {
+      page_parent_node->array_[i] = std::make_pair(key, page_bother->GetPageId());
+    } else {
+      page_parent_node->array_[i] = array_[start_idx + i - 1];
+    }
+
+    // page_parent_node->array_[i] = tmp[start_idx + i];
+
+    auto child_page = reinterpret_cast<BPlusTreePage *>(
+        buffer_pool_manager_->FetchPage(page_parent_node->array_[i].second)->GetData());
+    child_page->SetParentPageId(page_parent_node->GetPageId());
+    buffer_pool_manager_->UnpinPage(child_page->GetPageId(),
+                                    true);  // 对child page进行了更新，设置dirty标记为true
+  }
+
+  for (int j = 0; j < mid; j++) {
+    array_[j] = tmp[j];
+  }
+
+  page_parent_node->IncreaseSize(move_num);
+  IncreaseSize(1 - move_num);
+  free(tmp);
+}
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SplitCopy(BPlusTreeInternalPage *node, MappingType child_item,
                                                KeyComparator comparator, BufferPoolManager *buffer_pool_manager_) {
@@ -95,7 +323,8 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SplitCopy(BPlusTreeInternalPage *node, Mapp
   //  这样就可以直接通过减少原node的size来达到删除效果
 
   int start_idx = node->GetSize() + 1 - move_num;
-  int child_idx = node->Search(child_item.first, comparator) + 1;
+  int child_idx = node->Search(child_item.first, comparator);
+  child_idx++;
   for (int i = 0; i < move_num; i++) {
     if (start_idx + i < child_idx) {
       array_[i] = node->array_[start_idx + i];
@@ -130,10 +359,20 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::NewNodeInsert(KeyType key, ValueType new_node_id,
                                                    const KeyComparator &comparator) {
   int idx = Search(key, comparator);
-  for (int i = GetSize() - 1; i > idx; i--) {
-    array_[i + 1] = array_[i];
+  for (int i = GetSize(); i > idx + 1; i--) {
+    array_[i] = array_[i - 1];
   }
   array_[idx + 1] = MappingType{key, new_node_id};
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIdx(ValueType value) const -> int {
+  for (int i = 0; i < this->GetSize(); i++) {
+    if (array_[i].second == value) {
+      return i;
+    }
+  }
+  return 0;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -166,31 +405,16 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirst(BPlusTreeInternalPage *node, cons
   node->array_[node->GetSize()] = array_[0];
   auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[0].second)->GetData());
   child_page->SetParentPageId(node->GetPageId());
-  buffer_pool_manager->UnpinPage(array_[0].second, true);
+  buffer_pool_manager->UnpinPage(child_page->GetPageId(), true);
   for (int i = 0; i < GetSize() - 1; i++) {
     array_[i] = array_[i + 1];
   }
 }
 
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLast(BPlusTreeInternalPage *node, const KeyType &first_key,
-                                              BufferPoolManager *buffer_pool_manager) {
-  node->array_[0].first = first_key;
-  for (int i = 0; i < node->GetSize(); i++) {
-    node->array_[i + 1] = node->array_[i];
-  }
-  node->array_[0] = array_[GetSize() - 1];
-  auto *child_page =
-      reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array_[GetSize() - 1].second)->GetData());
-  child_page->SetParentPageId(node->GetPageId());
-  buffer_pool_manager->UnpinPage(array_[GetSize() - 1].second, true);
-}
-
-// valuetype for internalNode should be page_id_t
+// valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;
 template class BPlusTreeInternalPage<GenericKey<8>, page_id_t, GenericComparator<8>>;
 template class BPlusTreeInternalPage<GenericKey<16>, page_id_t, GenericComparator<16>>;
 template class BPlusTreeInternalPage<GenericKey<32>, page_id_t, GenericComparator<32>>;
 template class BPlusTreeInternalPage<GenericKey<64>, page_id_t, GenericComparator<64>>;
-
 }  // namespace bustub

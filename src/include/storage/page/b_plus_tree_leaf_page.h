@@ -47,31 +47,29 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = LEAF_PAGE_SIZE);
   // helper methods
   auto GetNextPageId() const -> page_id_t;
-
   void SetNextPageId(page_id_t next_page_id);
-
   auto KeyAt(int index) const -> KeyType;
+  auto ValueAt(int index) const -> ValueType;
 
-  auto KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int;
-
-  auto GetItem(int index) -> MappingType &;
-
+  auto Insert(MappingType value, int index, const KeyComparator &keyComparator) -> bool;
+  auto Insert(const KeyType key, const ValueType value, const KeyComparator &comparator) -> int;
+  auto KeyIndex(const KeyType &key, const KeyComparator &keyComparator) const -> int;
+  auto Break(Page *bother_page) -> void;
+  auto Remove(const KeyType &key, int index, const KeyComparator &keyComparator) -> bool;
+  auto Delete(const KeyType &key, const KeyComparator &keyComparator) -> bool;
+  auto Merge(Page *right, BufferPoolManager *buffer_pool_manager_) -> void;
+  auto InsertFirst(const KeyType &key, const ValueType &value) -> void;
+  auto InsertLast(const KeyType &key, const ValueType &value) -> void;
+  auto GetPair(int index) -> MappingType &;
   auto GetValue(const KeyType &key, const KeyComparator &comparator, std::vector<ValueType> *result = nullptr) const
       -> bool;
-
-  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
 
   void SplitCopy(BPlusTreeLeafPage *node, int startidx, int num);
 
   auto RemoveItem(const KeyType &key, KeyComparator &comparator) -> int;
-
   void MoveAll(BPlusTreeLeafPage *node);
-
   void MoveFirst(BPlusTreeLeafPage *node);
-
   void MoveLast(BPlusTreeLeafPage *node);
-
-  void Print();
 
  private:
   page_id_t next_page_id_;

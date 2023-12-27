@@ -24,7 +24,7 @@ class IndexIterator {
  public:
   // you may define your own constructor based on your member variables
   IndexIterator();
-  IndexIterator(Page *leaf_page, int index, BufferPoolManager *bpm = nullptr);
+  IndexIterator(Page *curr_page, int index, page_id_t page_id, BufferPoolManager *bufferPoolManager);
   ~IndexIterator();  // NOLINT
 
   auto IsEnd() -> bool;
@@ -34,16 +34,19 @@ class IndexIterator {
   auto operator++() -> IndexIterator &;
 
   auto operator==(const IndexIterator &itr) const -> bool {
-    return itr.cur_leaf_page_ == cur_leaf_page_ && itr.index_ == index_;
+    return static_cast<bool>(page_id_ == itr.page_id_ && index_ == itr.index_);
   }
 
-  auto operator!=(const IndexIterator &itr) const -> bool { return !(itr == *this); }
+  auto operator!=(const IndexIterator &itr) const -> bool {
+    return !static_cast<bool>(page_id_ == itr.page_id_ && index_ == itr.index_);
+  }
 
  private:
+  page_id_t page_id_ = INVALID_PAGE_ID;
+  Page *curr_page_ = nullptr;
+  int index_ = 0;
+  BufferPoolManager *buffer_pool_manager_ = nullptr;
   // add your own private member variables here
-  Page *cur_leaf_page_{nullptr};
-  int index_;
-  BufferPoolManager *buffer_pool_manager_{nullptr};
 };
 
 }  // namespace bustub

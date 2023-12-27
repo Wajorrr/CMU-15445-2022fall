@@ -49,16 +49,32 @@ class Page {
   inline auto IsDirty() -> bool { return is_dirty_; }
 
   /** Acquire the page write latch. */
-  inline void WLatch() { rwlatch_.WLock(); }
+  inline void WLatch() {
+    // std::cout << "try Wlatch:" << page_id_ << "\n";
+    rwlatch_.WLock();
+    // std::cout << "Wlatched:" << page_id_ << "\n";
+  }
 
   /** Release the page write latch. */
-  inline void WUnlatch() { rwlatch_.WUnlock(); }
+  inline void WUnlatch() {
+    // std::cout << "try WUnlatch:" << page_id_ << "\n";
+    rwlatch_.WUnlock();
+    // std::cout << "WUnlatched:" << page_id_ << "\n";
+  }
 
   /** Acquire the page read latch. */
-  inline void RLatch() { rwlatch_.RLock(); }
+  inline void RLatch() {
+    // std::cout << "try Rlatch:" << page_id_ << "\n";
+    rwlatch_.RLock();
+    // std::cout << "Rlatched:" << page_id_ << "\n";
+  }
 
   /** Release the page read latch. */
-  inline void RUnlatch() { rwlatch_.RUnlock(); }
+  inline void RUnlatch() {
+    // std::cout << "try RUnlatch:" << page_id_ << "\n";
+    rwlatch_.RUnlock();
+    // std::cout << "RUnlatched:" << page_id_ << "\n";
+  }
 
   /** @return the page LSN. */
   inline auto GetLSN() -> lsn_t { return *reinterpret_cast<lsn_t *>(GetData() + OFFSET_LSN); }

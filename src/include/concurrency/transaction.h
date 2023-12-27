@@ -221,7 +221,10 @@ class Transaction {
    * Adds a page into the page set.
    * @param page page to be added
    */
-  inline void AddIntoPageSet(Page *page) { page_set_->push_back(page); }
+  inline void AddIntoPageSet(Page *page) {
+    page_set_->push_back(page);
+    // std::cout << "\n\nAddIntoPageSet:page=" << page->GetPageId() << "\n\n";
+  }
 
   /** @return the deleted page set */
   inline auto GetDeletedPageSet() -> std::shared_ptr<std::unordered_set<page_id_t>> { return deleted_page_set_; }
@@ -230,7 +233,10 @@ class Transaction {
    * Adds a page to the deleted page set.
    * @param page_id id of the page to be marked as deleted
    */
-  inline void AddIntoDeletedPageSet(page_id_t page_id) { deleted_page_set_->insert(page_id); }
+  inline void AddIntoDeletedPageSet(page_id_t page_id) {
+    deleted_page_set_->insert(page_id);
+    // std::cout << "\n\nAddIntoDeletedPageSet:page=" << page_id << "\n\n";
+  }
 
   /** @return the set of resources under a shared lock */
   inline auto GetSharedLockSet() -> std::shared_ptr<std::unordered_set<RID>> { return shared_lock_set_; }

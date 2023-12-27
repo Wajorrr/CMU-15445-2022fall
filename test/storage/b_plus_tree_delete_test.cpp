@@ -100,7 +100,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   auto *disk_manager = new DiskManager("test.db");
   BufferPoolManager *bpm = new BufferPoolManagerInstance(50, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 2, 2);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -117,6 +117,33 @@ TEST(BPlusTreeTests, DeleteTest2) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+  }
+
+  // 1:1
+
+  //    3
+  // 1:1 2:2
+
+  //       6
+  //   3       5
+  // 1:1    2:2 4:3
+
+  //          10
+  //     6          9
+  //   3        5       8
+  // 1:1       2:2   4:3 7:4
+
+  //           15
+  //       10         14
+  //     6          9        13
+  //   3         5         8     12
+  // 1:1       2:2     4:3   7:4    11:5
+
+  for (auto iterator = tree.Begin(); iterator != tree.End(); ++iterator) {
+    // std::cout << (*iterator).first.ToString() << " " << (*iterator).second.ToString() << "\n";
+    // if (iterator == tree.End()) {
+    //   std::cout << "loop break\n";
+    // }
   }
 
   std::vector<RID> rids;

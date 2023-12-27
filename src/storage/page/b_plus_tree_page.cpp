@@ -40,10 +40,7 @@ void BPlusTreePage::SetMaxSize(int size) { max_size_ = size; }
  * Generally, min page size == max page size / 2
  */
 auto BPlusTreePage::GetMinSize() const -> int {
-  if (IsLeafPage()) {
-    return max_size_ >> 1;
-  }
-  return (max_size_ + 1) >> 1;  // internal节点的minsize
+  return IsLeafPage() ? ceil((max_size_ - 1) / 2.0) : ceil(max_size_ / 2.0);
 }
 
 /*
@@ -62,43 +59,5 @@ void BPlusTreePage::SetPageId(page_id_t page_id) { page_id_ = page_id; }
  * Helper methods to set lsn
  */
 void BPlusTreePage::SetLSN(lsn_t lsn) { lsn_ = lsn; }
-
-// void BPlusTreePage::RLock() {
-//   std::unique_lock<std::mutex> latch(mutex_);
-//   while (writer_entered_ || reader_count_ == MAX_READER_COUNT) {
-//     reader_.wait(latch);
-//   }
-//   reader_count_++;
-// }
-// void BPlusTreePage::RUnlock() {
-//   std::unique_lock<std::mutex> latch(mutex_);
-//   reader_count_--;
-//   if (writer_entered_) {
-//     if (reader_count_ == 0) {
-//       writer_.notify_one();
-//     }
-//   } else if (reader_count_ == MAX_READER_COUNT - 1) {
-//     reader_.notify_one();
-//   }
-// }
-// void BPlusTreePage::WLock() {
-//   std::cout << "page " << GetPageId() << " try lock\n";
-//   std::unique_lock<std::mutex> latch(mutex_);
-//   while (writer_entered_) {
-//     reader_.wait(latch);
-//   }
-//   writer_entered_ = true;
-//   if (reader_count_ > 0) {
-//     writer_.wait(latch);
-//   }
-//   std::cout << "page " << GetPageId() << " locked\n";
-// }
-// void BPlusTreePage::WUnlock() {
-//   std::cout << "page " << GetPageId() << " try unlock\n";
-//   std::unique_lock<std::mutex> latch(mutex_);
-//   writer_entered_ = false;
-//   reader_.notify_all();
-//   std::cout << "page " << GetPageId() << " unlocked\n";
-// }
 
 }  // namespace bustub

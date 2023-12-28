@@ -67,7 +67,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void Remove(int idx);
   void MoveAll(BPlusTreeInternalPage *node, const KeyType &first_key, BufferPoolManager *buffer_pool_manager);
   void MoveFirst(BPlusTreeInternalPage *node, const KeyType &first_key, BufferPoolManager *buffer_pool_manager);
-  void MoveLast(BPlusTreeInternalPage *node, const KeyType first_key, BufferPoolManager *buffer_pool_manager);
+  void MoveLast(BPlusTreeInternalPage *node, KeyType first_key, BufferPoolManager *buffer_pool_manager);
 
  private:
   // Flexible array member for page data.

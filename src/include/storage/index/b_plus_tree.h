@@ -50,9 +50,9 @@ class BPlusTree {
   auto DeleteEntry(Page *&page, const KeyType &key) -> void;
   auto DeleteEntryRW(Page *&page, const KeyType &key, Transaction *transaction) -> void;
   // 删除根节点上的key后需要调整时调用
-  void AdjustRoot(Page *old_root_node, Transaction *transaction);
+  void AdjustRoot(Page *old_root_page, Transaction *transaction);
 
-  void CoalesceOrRedistribute(Page *node, Transaction *transaction);
+  void CoalesceOrRedistribute(Page *page, Transaction *transaction);
 
   void Coalesce(Page *sibling_page, Page *page, InternalPage *parent_node, int node_idx, Transaction *transaction);
 

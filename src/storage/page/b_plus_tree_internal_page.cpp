@@ -53,9 +53,9 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
   if (index >= 0 && index < GetSize()) {
     return array_[index].second;
-  } else {
-    return ValueType{-1};
   }
+
+  return ValueType{-1};
 }
 
 INDEX_TEMPLATE_ARGUMENTS

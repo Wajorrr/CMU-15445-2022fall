@@ -83,8 +83,8 @@ class Optimizer {
    * @param right_column_cnt number of columns in the left size of the NLJ
    */
   // 重写用于嵌套循环连接的表达式
-  auto RewriteExpressionForJoin(const AbstractExpressionRef &expr, size_t left_column_cnt,
-                                size_t right_column_cnt) -> AbstractExpressionRef;
+  auto RewriteExpressionForJoin(const AbstractExpressionRef &expr, size_t left_column_cnt, size_t right_column_cnt)
+      -> AbstractExpressionRef;
 
   /** @brief check if the predicate is true::boolean */
   // 检查谓词是否总是为真
@@ -98,8 +98,8 @@ class Optimizer {
 
   /** @brief check if the index can be matched */
   // 检查索引是否匹配
-  auto MatchIndex(const std::string &table_name,
-                  uint32_t index_key_idx) -> std::optional<std::tuple<index_oid_t, std::string>>;
+  auto MatchIndex(const std::string &table_name, uint32_t index_key_idx)
+      -> std::optional<std::tuple<index_oid_t, std::string>>;
 
   /**
    * @brief optimize sort + limit as top N

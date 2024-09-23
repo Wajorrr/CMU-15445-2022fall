@@ -130,8 +130,8 @@ class Catalog {
   // 创建一个新表，table_name: 表的名称、schema: 表的模式、txn: 当前事务
   // 布尔值 create_table_heap用于指示是否为新表创建表堆
   // 指向新创建表的元数据的指针
-  auto CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema,
-                   bool create_table_heap = true) -> TableInfo * {
+  auto CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema, bool create_table_heap = true)
+      -> TableInfo * {
     // 首先检查 table_names_ 容器中是否已经存在同名的表
     if (table_names_.count(table_name) != 0) {
       // 如果存在，则返回一个特殊的空表信息指针 NULL_TABLE_INFO，表示表创建失败

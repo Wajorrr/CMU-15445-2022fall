@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 #include <memory>
 
+#include "common/exception.h"
 #include "execution/executors/update_executor.h"
-
 namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,

@@ -99,8 +99,8 @@ class TablePage : public Page {
    * @return true if the insert is successful (i.e. there is enough space)
    */
   // 用于将一个元组插入表页
-  auto InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn, LockManager *lock_manager,
-                   LogManager *log_manager) -> bool;
+  auto InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn, LockManager *lock_manager, LogManager *log_manager)
+      -> bool;
 
   /**
    * Mark a tuple as deleted. This does not actually delete the tuple.

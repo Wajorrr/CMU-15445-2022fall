@@ -21,8 +21,8 @@
 namespace bustub {
 
 // 用于处理二元操作表达式，并生成相应的抽象表达式引用
-auto Planner::PlanBinaryOp(const BoundBinaryOp &expr,
-                           const std::vector<AbstractPlanNodeRef> &children) -> AbstractExpressionRef {
+auto Planner::PlanBinaryOp(const BoundBinaryOp &expr, const std::vector<AbstractPlanNodeRef> &children)
+    -> AbstractExpressionRef {
   // 调用 PlanExpression 方法来处理左子表达式 expr.larg_，并将结果存储在 left 变量中
   // 使用了结构化绑定语法，忽略了第一个返回值
   auto [_1, left] = PlanExpression(*expr.larg_, children);
@@ -119,8 +119,8 @@ auto Planner::PlanColumnRef(const BoundColumnRef &expr, const std::vector<Abstra
 }
 
 // 主要作用是为给定的常量表达式生成一个 ConstantValueExpression 对象
-auto Planner::PlanConstant(const BoundConstant &expr,
-                           const std::vector<AbstractPlanNodeRef> &children) -> AbstractExpressionRef {
+auto Planner::PlanConstant(const BoundConstant &expr, const std::vector<AbstractPlanNodeRef> &children)
+    -> AbstractExpressionRef {
   // 直接返回一个 ConstantValueExpression 对象的共享指针
   // 这个对象是通过传递 expr.val_（常量表达式的值）来构造的
   return std::make_shared<ConstantValueExpression>(expr.val_);

@@ -99,8 +99,8 @@ auto TablePage::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn, Lock
   return true;
 }
 
-auto TablePage::MarkDelete(const RID &rid, Transaction *txn, LockManager *lock_manager,
-                           LogManager *log_manager) -> bool {
+auto TablePage::MarkDelete(const RID &rid, Transaction *txn, LockManager *lock_manager, LogManager *log_manager)
+    -> bool {
   uint32_t slot_num = rid.GetSlotNum();
   // If the slot number is invalid, abort the transaction.
   // 如果插槽号无效，函数返回 false，表示删除失败

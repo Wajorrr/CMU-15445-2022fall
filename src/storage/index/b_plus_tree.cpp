@@ -111,8 +111,8 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction,
-                                    Operation op) -> Page * {
+auto BPLUSTREE_TYPE::FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction, Operation op)
+    -> Page * {
   // 给定key，返回key所在/要插入的leaf page
   if (IsEmpty()) {
     return nullptr;

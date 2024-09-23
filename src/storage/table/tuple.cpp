@@ -124,8 +124,8 @@ auto Tuple::GetValue(const Schema *schema, const uint32_t column_idx) const -> V
 // 从现有元组中提取键元组
 // 通过这种方式，KeyFromTuple 函数能够从现有元组中提取出一个包含特定键属性的子元组
 // 这在数据库索引和键值对操作中非常有用
-auto Tuple::KeyFromTuple(const Schema &schema, const Schema &key_schema,
-                         const std::vector<uint32_t> &key_attrs) -> Tuple {
+auto Tuple::KeyFromTuple(const Schema &schema, const Schema &key_schema, const std::vector<uint32_t> &key_attrs)
+    -> Tuple {
   // 首先创建一个 std::vector<Value> 对象 values，并预留空间以容纳所有键属性
   std::vector<Value> values;
   values.reserve(key_attrs.size());

@@ -31,7 +31,7 @@ class ExecutorFactory {
    * @return An executor for the given plan in the provided context
    */
   // 用于创建一个新的执行器，给定执行器上下文和计划节点
-  static auto CreateExecutor(ExecutorContext *exec_ctx,
-                             const AbstractPlanNodeRef &plan) -> std::unique_ptr<AbstractExecutor>;
+  static auto CreateExecutor(ExecutorContext *exec_ctx, const AbstractPlanNodeRef &plan)
+      -> std::unique_ptr<AbstractExecutor>;
 };
 }  // namespace bustub

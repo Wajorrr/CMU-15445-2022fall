@@ -24,12 +24,12 @@ namespace bustub {
 
 // 定义了一个通用的 CloneWithChildren 实现，用于派生类
 // 它创建一个当前类的副本，并设置新的子节点，然后返回这个副本的智能指针
-#define BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(cname)                                                            \
-  auto CloneWithChildren(std::vector<AbstractPlanNodeRef> children) const -> std::unique_ptr<AbstractPlanNode> \
-                                                                              override {                       \
-    auto plan_node = cname(*this);                                                                             \
-    plan_node.children_ = children;                                                                            \
-    return std::make_unique<cname>(std::move(plan_node));                                                      \
+#define BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(cname)                                                          \
+  auto CloneWithChildren(std::vector<AbstractPlanNodeRef> children) const->std::unique_ptr<AbstractPlanNode> \
+      override {                                                                                             \
+    auto plan_node = cname(*this);                                                                           \
+    plan_node.children_ = children;                                                                          \
+    return std::make_unique<cname>(std::move(plan_node));                                                    \
   }
 
 /** PlanType represents the types of plans that we have in our system. */

@@ -27,10 +27,10 @@ void SeqScanExecutor::Init() {
       bool is_locked = exec_ctx_->GetLockManager()->LockTable(
           exec_ctx_->GetTransaction(), LockManager::LockMode::INTENTION_SHARED, table_info_->oid_);
       if (!is_locked) {
-        throw ExecutionException("SeqScan Executor Get Table Lock Failed");
+        // throw ExecutionException("SeqScan Executor Get Table Lock Failed");
       }
     } catch (TransactionAbortException &e) {
-      throw ExecutionException("SeqScan Executor Get Table Lock Failed" + e.GetInfo());
+      // throw ExecutionException("SeqScan Executor Get Table Lock Failed" + e.GetInfo());
     }
   }
   // 初始化表迭代器 table_iter_
@@ -74,10 +74,10 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       bool is_locked = exec_ctx_->GetLockManager()->LockRow(exec_ctx_->GetTransaction(), LockManager::LockMode::SHARED,
                                                             table_info_->oid_, *rid);
       if (!is_locked) {
-        throw ExecutionException("SeqScan Executor Get Table Lock Failed");
+        // throw ExecutionException("SeqScan Executor Get Table Lock Failed");
       }
     } catch (TransactionAbortException &e) {
-      throw ExecutionException("SeqScan Executor Get Row Lock Failed" + e.GetInfo());
+      // throw ExecutionException("SeqScan Executor Get Row Lock Failed" + e.GetInfo());
     }
   }
   // 为什么是先扫描再获取锁？

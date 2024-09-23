@@ -306,7 +306,6 @@ auto BustubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
         continue;
       }
       case StatementType::EXPLAIN_STATEMENT: {  // 解释查询
-
         // 对于普通查询，它会进行查询计划和优化，然后执行查询并将结果写入结果中
         const auto &explain_stmt = dynamic_cast<const ExplainStatement &>(*statement);
         std::string output;

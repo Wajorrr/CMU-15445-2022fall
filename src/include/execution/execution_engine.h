@@ -28,6 +28,7 @@ namespace bustub {
 /**
  * The ExecutionEngine class executes query plans.
  */
+// 用于执行查询计划，接收查询计划并执行它们，生成结果集
 class ExecutionEngine {
  public:
   /**
@@ -50,18 +51,26 @@ class ExecutionEngine {
    * @return `true` if execution of the query plan succeeds, `false` otherwise
    */
   // NOLINTNEXTLINE
+  // 用于执行查询计划
+  // 接收四个参数：查询计划 plan、结果集 result_set、事务上下文 txn 和执行上下文 exec_ctx
   auto Execute(const AbstractPlanNodeRef &plan, std::vector<Tuple> *result_set, Transaction *txn,
                ExecutorContext *exec_ctx) -> bool {
+    // 确保事务上下文与执行上下文中的事务一致
     BUSTUB_ASSERT((txn == exec_ctx->GetTransaction()), "Broken Invariant");
 
     // Construct the executor for the abstract plan node
+    // 使用 ExecutorFactory 创建一个执行器
     auto executor = ExecutorFactory::CreateExecutor(exec_ctx, plan);
 
     // Initialize the executor
     auto executor_succeeded = true;
 
     try {
+      // 初始化执行器
       executor->Init();
+      // PollExecutor 方法是一个私有的静态方法
+      // 用于从执行器中提取结果元组，直到执行器耗尽或发生异常
+      // 接收三个参数：根执行器 executor、查询计划 plan 和结果集 result_set
       PollExecutor(executor.get(), plan, result_set);
     } catch (const ExecutionException &ex) {
 #ifndef NDEBUG
@@ -83,10 +92,12 @@ class ExecutionEngine {
    * @param plan The plan to execute
    * @param result_set The tuple result set
    */
+  // 用于从执行器中提取结果元组
   static void PollExecutor(AbstractExecutor *executor, const AbstractPlanNodeRef &plan,
                            std::vector<Tuple> *result_set) {
     RID rid{};
     Tuple tuple{};
+    // 不断调用执行器的 Next 方法获取下一个元组，并将其添加到结果集中
     while (executor->Next(&tuple, &rid)) {
       if (result_set != nullptr) {
         result_set->push_back(tuple);

@@ -31,29 +31,44 @@
 
 namespace bustub {
 
+// 用于将不同类型的表引用转换为相应的计划节点
+// 并返回一个 AbstractPlanNodeRef 类型的计划节点
 auto Planner::PlanTableRef(const BoundTableRef &table_ref) -> AbstractPlanNodeRef {
+  // 根据表引用的类型选择不同的处理逻辑
   switch (table_ref.type_) {
     case TableReferenceType::BASE_TABLE: {
+      // 将 table_ref 动态转换为 BoundBaseTableRef 对象
+      // 并调用 PlanBaseTableRef 方法来处理基本表引用
       const auto &base_table_ref = dynamic_cast<const BoundBaseTableRef &>(table_ref);
       return PlanBaseTableRef(base_table_ref);
     }
     case TableReferenceType::CROSS_PRODUCT: {
+      // 将 table_ref 动态转换为 BoundCrossProductRef 对象
+      // 并调用 PlanCrossProductRef 方法来处理交叉乘积引用
       const auto &cross_product = dynamic_cast<const BoundCrossProductRef &>(table_ref);
       return PlanCrossProductRef(cross_product);
     }
     case TableReferenceType::JOIN: {
+      // 将 table_ref 动态转换为 BoundJoinRef 对象
+      // 并调用 PlanJoinRef 方法来处理连接引用
       const auto &join = dynamic_cast<const BoundJoinRef &>(table_ref);
       return PlanJoinRef(join);
     }
     case TableReferenceType::EXPRESSION_LIST: {
+      // 将 table_ref 动态转换为 BoundExpressionListRef 对象
+      // 并调用 PlanExpressionListRef 方法来处理表达式列表引用
       const auto &expression_list = dynamic_cast<const BoundExpressionListRef &>(table_ref);
       return PlanExpressionListRef(expression_list);
     }
     case TableReferenceType::SUBQUERY: {
+      // 将 table_ref 动态转换为 BoundSubqueryRef 对象
+      // 并调用 PlanSubquery 方法来处理子查询引用，同时传递子查询的别名
       const auto &subquery = dynamic_cast<const BoundSubqueryRef &>(table_ref);
       return PlanSubquery(subquery, subquery.alias_);
     }
     case TableReferenceType::CTE: {
+      // 将 table_ref 动态转换为 BoundCTERef 对象
+      // 并调用 PlanCTERef 方法来处理公共表表达式（CTE）引用
       const auto &cte = dynamic_cast<const BoundCTERef &>(table_ref);
       return PlanCTERef(cte);
     }

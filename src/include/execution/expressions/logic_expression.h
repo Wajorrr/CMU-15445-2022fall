@@ -29,11 +29,13 @@
 namespace bustub {
 
 /** ArithmeticType represents the type of logic operation that we want to perform. */
+// 包括与运算（And）和或运算（Or）
 enum class LogicType { And, Or };
 
 /**
  * LogicExpression represents two expressions being computed.
  */
+// 表示两个逻辑表达式的计算
 class LogicExpression : public AbstractExpression {
  public:
   /** Creates a new comparison expression representing (left comp_type right). */
@@ -44,12 +46,16 @@ class LogicExpression : public AbstractExpression {
     }
   }
 
+  // 接收一个元组和一个模式作为参数
+  // 分别评估左操作数和右操作数，然后调用 PerformComputation 方法进行计算
   auto Evaluate(const Tuple *tuple, const Schema &schema) const -> Value override {
     Value lhs = GetChildAt(0)->Evaluate(tuple, schema);
     Value rhs = GetChildAt(1)->Evaluate(tuple, schema);
     return ValueFactory::GetBooleanValue(PerformComputation(lhs, rhs));
   }
 
+  // 接收两个元组和两个模式作为参数，分别评估左操作数和右操作数
+  // 然后调用 PerformComputation 方法进行计算
   auto EvaluateJoin(const Tuple *left_tuple, const Schema &left_schema, const Tuple *right_tuple,
                     const Schema &right_schema) const -> Value override {
     Value lhs = GetChildAt(0)->EvaluateJoin(left_tuple, left_schema, right_tuple, right_schema);
@@ -67,6 +73,7 @@ class LogicExpression : public AbstractExpression {
   LogicType logic_type_;
 
  private:
+  // 将 Value 对象转换为 CmpBool 枚举类型
   auto GetBoolAsCmpBool(const Value &val) const -> CmpBool {
     if (val.IsNull()) {
       return CmpBool::CmpNull;
@@ -77,6 +84,7 @@ class LogicExpression : public AbstractExpression {
     return CmpBool::CmpFalse;
   }
 
+  // 接收两个 Value 对象作为参数，并返回一个 CmpBool 枚举类型的结果
   auto PerformComputation(const Value &lhs, const Value &rhs) const -> CmpBool {
     auto l = GetBoolAsCmpBool(lhs);
     auto r = GetBoolAsCmpBool(rhs);

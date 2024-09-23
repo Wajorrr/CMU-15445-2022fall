@@ -49,13 +49,13 @@ struct TableInfo {
   TableInfo(Schema schema, std::string name, std::unique_ptr<TableHeap> &&table, table_oid_t oid)
       : schema_{std::move(schema)}, name_{std::move(name)}, table_{std::move(table)}, oid_{oid} {}
   /** The table schema */
-  Schema schema_;
+  Schema schema_;  // 表的模式
   /** The table name */
-  const std::string name_;
+  const std::string name_;  // 表的名称
   /** An owning pointer to the table heap */
-  std::unique_ptr<TableHeap> table_;
+  std::unique_ptr<TableHeap> table_;  // 指向表堆（TableHeap）的拥有指针
   /** The table OID */
-  const table_oid_t oid_;
+  const table_oid_t oid_;  // 表的唯一标识符（OID）
 };
 
 /**
@@ -80,17 +80,17 @@ struct IndexInfo {
         table_name_{std::move(table_name)},
         key_size_{key_size} {}
   /** The schema for the index key */
-  Schema key_schema_;
+  Schema key_schema_;  // 索引键的模式
   /** The name of the index */
-  std::string name_;
+  std::string name_;  // 索引的名称
   /** An owning pointer to the index */
-  std::unique_ptr<Index> index_;
+  std::unique_ptr<Index> index_;  // 指向索引（Index）的拥有指针
   /** The unique OID for the index */
-  index_oid_t index_oid_;
+  index_oid_t index_oid_;  // 索引的唯一标识符
   /** The name of the table on which the index is created */
-  std::string table_name_;
+  std::string table_name_;  // 创建索引的表的名称
   /** The size of the index key, in bytes */
-  const size_t key_size_;
+  const size_t key_size_;  // 索引键的大小，以字节为单位
 };
 
 /**
@@ -98,8 +98,12 @@ struct IndexInfo {
  * use by executors within the DBMS execution engine. It handles
  * table creation, table lookup, index creation, and index lookup.
  */
+// Catalog 类在 BusTub 数据库系统中用于管理数据库的元数据，包括表和索引的元数据
+// 它提供了创建、获取和管理表和索引的方法
 class Catalog {
  public:
+  // 两个静态常量指针 NULL_TABLE_INFO 和 NULL_INDEX_INFO
+  // 分别用于指示返回 TableInfo* 和 IndexInfo* 类型的操作失败时的情况
   /** Indicates that an operation returning a `TableInfo*` failed */
   static constexpr TableInfo *NULL_TABLE_INFO{nullptr};
 
@@ -123,13 +127,19 @@ class Catalog {
    * @param create_table_heap whether to create a table heap for the new table
    * @return A (non-owning) pointer to the metadata for the table
    */
-  auto CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema, bool create_table_heap = true)
-      -> TableInfo * {
+  // 创建一个新表，table_name: 表的名称、schema: 表的模式、txn: 当前事务
+  // 布尔值 create_table_heap用于指示是否为新表创建表堆
+  // 指向新创建表的元数据的指针
+  auto CreateTable(Transaction *txn, const std::string &table_name, const Schema &schema,
+                   bool create_table_heap = true) -> TableInfo * {
+    // 首先检查 table_names_ 容器中是否已经存在同名的表
     if (table_names_.count(table_name) != 0) {
+      // 如果存在，则返回一个特殊的空表信息指针 NULL_TABLE_INFO，表示表创建失败
       return NULL_TABLE_INFO;
     }
 
     // Construct the table heap
+    // 创建一个新的表堆
     std::unique_ptr<TableHeap> table = nullptr;
 
     // TODO(Wan,chi): This should be refactored into a private ctor for the binder tests, we shouldn't allow nullptr.
@@ -140,15 +150,21 @@ class Catalog {
     }
 
     // Fetch the table OID for the new table
+    // 从一个原子变量 next_table_oid_ 中获取当前值，并将其递增1
+    // 然后将获取到的值赋给 table_oid 变量
     const auto table_oid = next_table_oid_.fetch_add(1);
 
     // Construct the table information
+    // 创建一个新的表元数据
     auto meta = std::make_unique<TableInfo>(schema, table_name, std::move(table), table_oid);
     auto *tmp = meta.get();
 
     // Update the internal tracking mechanisms
+    // 创建oid到表元数据的映射
     tables_.emplace(table_oid, std::move(meta));
+    // 创建表名到表标识符的映射
     table_names_.emplace(table_name, table_oid);
+    // 创建表名到其索引的映射
     index_names_.emplace(table_name, std::unordered_map<std::string, index_oid_t>{});
 
     return tmp;
@@ -159,13 +175,15 @@ class Catalog {
    * @param table_name The name of the table
    * @return A (non-owning) pointer to the metadata for the table
    */
+  // 根据表名获取表的元数据
   auto GetTable(const std::string &table_name) const -> TableInfo * {
+    // 先根据表名查找表的标识符
     auto table_oid = table_names_.find(table_name);
     if (table_oid == table_names_.end()) {
       // Table not found
       return NULL_TABLE_INFO;
     }
-
+    // 根据表的标识符获取表的元数据
     auto meta = tables_.find(table_oid->second);
     BUSTUB_ASSERT(meta != tables_.end(), "Broken Invariant");
 
@@ -177,6 +195,7 @@ class Catalog {
    * @param table_oid The OID of the table to query
    * @return A (non-owning) pointer to the metadata for the table
    */
+  // 根据表的id获取表的元数据
   auto GetTable(table_oid_t table_oid) const -> TableInfo * {
     auto meta = tables_.find(table_oid);
     if (meta == tables_.end()) {
@@ -198,11 +217,17 @@ class Catalog {
    * @param hash_function The hash function for the index
    * @return A (non-owning) pointer to the metadata of the new table
    */
+  // 创建一个新索引
+  // txn: 当前事务、index_name: 索引的名称、table_name: 表的名称
+  // schema: 索引的模式、key_schema: 索引键的模式、key_attrs: 索引键的属性
+  // keysize: 索引键的大小、hash_function: 索引的哈希函数
+  // 指向新创建索引的元数据的指针
   template <class KeyType, class ValueType, class KeyComparator>
   auto CreateIndex(Transaction *txn, const std::string &index_name, const std::string &table_name, const Schema &schema,
                    const Schema &key_schema, const std::vector<uint32_t> &key_attrs, std::size_t keysize,
                    HashFunction<KeyType> hash_function) -> IndexInfo * {
     // Reject the creation request for nonexistent table
+    // 检查表 table_name 是否存在于 table_names_ 集合中
     if (table_names_.find(table_name) == table_names_.end()) {
       return NULL_INDEX_INFO;
     }
@@ -211,6 +236,8 @@ class Catalog {
     BUSTUB_ASSERT((index_names_.find(table_name) != index_names_.end()), "Broken Invariant");
 
     // Determine if the requested index already exists for this table
+    // 检查请求的索引 index_name 是否已经存在于该表的索引集合 table_indexes 中
+    // 如果索引已经存在，函数同样返回 NULL_INDEX_INFO
     auto &table_indexes = index_names_.find(table_name)->second;
     if (table_indexes.find(index_name) != table_indexes.end()) {
       // The requested index already exists for this table
@@ -218,6 +245,7 @@ class Catalog {
     }
 
     // Construct index metdata
+    // 创建一个 IndexMetadata 对象 meta，包含索引的元数据，如索引名称、表名称、表模式和键属性
     auto meta = std::make_unique<IndexMetadata>(index_name, table_name, &schema, key_attrs);
 
     // Construct the index, take ownership of metadata
@@ -226,25 +254,34 @@ class Catalog {
     // just the key, value, and comparator types
 
     // TODO(chi): support both hash index and btree index
+    // 使用 meta 创建一个 BPlusTreeIndex 对象 index，并将元数据的所有权转移给 index
     auto index = std::make_unique<BPlusTreeIndex<KeyType, ValueType, KeyComparator>>(std::move(meta), bpm_);
 
     // Populate the index with all tuples in table heap
+    // 从表中获取所有元组，并将它们插入到新创建的索引中
     auto *table_meta = GetTable(table_name);
+    // 通过调用 GetTable 获取表的元数据 table_meta
+    // 然后遍历表堆 heap 中的所有元组，将每个元组的键插入到索引中
     auto *heap = table_meta->table_.get();
     for (auto tuple = heap->Begin(txn); tuple != heap->End(); ++tuple) {
       index->InsertEntry(tuple->KeyFromTuple(schema, key_schema, key_attrs), tuple->GetRid(), txn);
     }
 
     // Get the next OID for the new index
+    // 获取新索引的下一个 OID
     const auto index_oid = next_index_oid_.fetch_add(1);
 
     // Construct index information; IndexInfo takes ownership of the Index itself
+    // 创建一个新的索引信息对象 index_info
+    // 包含索引的数据、索引名称、索引对象、索引标识符、表名称和键大小
     auto index_info =
         std::make_unique<IndexInfo>(key_schema, index_name, std::move(index), index_oid, table_name, keysize);
     auto *tmp = index_info.get();
 
     // Update internal tracking
+    // 索引标识符到索引信息的映射
     indexes_.emplace(index_oid, std::move(index_info));
+    // 索引名称到索引标识符的映射
     table_indexes.emplace(index_name, index_oid);
 
     return tmp;
@@ -256,6 +293,7 @@ class Catalog {
    * @param table_name The name of the table on which to perform query
    * @return A (non-owning) pointer to the metadata for the index
    */
+  // 根据索引名和表名获取索引的元数据
   auto GetIndex(const std::string &index_name, const std::string &table_name) -> IndexInfo * {
     auto table = index_names_.find(table_name);
     if (table == index_names_.end()) {
@@ -282,6 +320,7 @@ class Catalog {
    * @param table_oid The OID of the table on which to perform query
    * @return A (non-owning) pointer to the metadata for the index
    */
+  // 根据索引名和表标识符获取索引的元数据
   auto GetIndex(const std::string &index_name, const table_oid_t table_oid) -> IndexInfo * {
     // Locate the table metadata for the specified table OID
     auto table_meta = tables_.find(table_oid);
@@ -298,6 +337,7 @@ class Catalog {
    * @param index_oid The OID of the index for which to query
    * @return A (non-owning) pointer to the metadata for the index
    */
+  // 根据索引标识符获取索引的元数据
   auto GetIndex(index_oid_t index_oid) -> IndexInfo * {
     auto index = indexes_.find(index_oid);
     if (index == indexes_.end()) {
@@ -313,6 +353,7 @@ class Catalog {
    * @return A vector of IndexInfo* for each index on the given table, empty vector
    * in the event that the table exists but no indexes have been created for it
    */
+  // 根据表名获取表的所有索引
   auto GetTableIndexes(const std::string &table_name) const -> std::vector<IndexInfo *> {
     // Ensure the table exists
     if (table_names_.find(table_name) == table_names_.end()) {
@@ -333,6 +374,7 @@ class Catalog {
     return indexes;
   }
 
+  // 获取所有表的名称
   auto GetTableNames() -> std::vector<std::string> {
     std::vector<std::string> result;
     for (const auto &x : table_names_) {
@@ -342,8 +384,11 @@ class Catalog {
   }
 
  private:
+  // 指向缓冲池管理器的指针，用于管理数据库页面的内存
   [[maybe_unused]] BufferPoolManager *bpm_;
+  // 指向锁管理器的指针，用于管理事务的锁
   [[maybe_unused]] LockManager *lock_manager_;
+  // 指向日志管理器的指针，用于管理数据库的日志记录
   [[maybe_unused]] LogManager *log_manager_;
 
   /**
@@ -351,12 +396,15 @@ class Catalog {
    *
    * NOTE: `tables_` owns all table metadata.
    */
+  // 存储表标识符到表元数据的映射。tables_ 拥有所有表元数据的唯一所有权
   std::unordered_map<table_oid_t, std::unique_ptr<TableInfo>> tables_;
 
   /** Map table name -> table identifiers. */
+  // 存储表名到表标识符的映射
   std::unordered_map<std::string, table_oid_t> table_names_;
 
   /** The next table identifier to be used. */
+  // 用于生成下一个表标识符的原子变量
   std::atomic<table_oid_t> next_table_oid_{0};
 
   /**
@@ -364,12 +412,16 @@ class Catalog {
    *
    * NOTE: that `indexes_` owns all index metadata.
    */
+  // 存储索引标识符到索引元数据的映射
+  // indexes_ 拥有所有索引元数据的唯一所有权
   std::unordered_map<index_oid_t, std::unique_ptr<IndexInfo>> indexes_;
 
   /** Map table name -> index names -> index identifiers. */
+  // 存储表名到索引名到索引标识符的映射
   std::unordered_map<std::string, std::unordered_map<std::string, index_oid_t>> index_names_;
 
   /** The next index identifier to be used. */
+  // 用于生成下一个索引标识符的原子变量
   std::atomic<index_oid_t> next_index_oid_{0};
 };
 

@@ -44,6 +44,8 @@ class AggregationPlanNode : public AbstractPlanNode {
    * @param aggregates The expressions that we are aggregating
    * @param agg_types The types that we are aggregating
    */
+  // 用于表示各种 SQL 聚合函数，例如 COUNT()、SUM()、MIN() 和 MAX()
+  // 为了简化项目，AggregationPlanNode 必须始终只有一个子节点
   AggregationPlanNode(SchemaRef output_schema, AbstractPlanNodeRef child, std::vector<AbstractExpressionRef> group_bys,
                       std::vector<AbstractExpressionRef> aggregates, std::vector<AggregationType> agg_types)
       : AbstractPlanNode(std::move(output_schema), {std::move(child)}),
@@ -52,29 +54,41 @@ class AggregationPlanNode : public AbstractPlanNode {
         agg_types_(std::move(agg_types)) {}
 
   /** @return The type of the plan node */
+  // 返回计划节点的类型
   auto GetType() const -> PlanType override { return PlanType::Aggregation; }
 
   /** @return the child of this aggregation plan node */
+  // 返回此聚合计划节点的子节点
+  // 断言子节点的数量必须为 1，然后返回第一个子节点
   auto GetChildPlan() const -> AbstractPlanNodeRef {
     BUSTUB_ASSERT(GetChildren().size() == 1, "Aggregation expected to only have one child.");
     return GetChildAt(0);
   }
 
   /** @return The idx'th group by expression */
+  // 返回第 idx 个分组表达式
+  // 它接收一个无符号整数 idx 作为参数，并返回一个常量引用
+  // 指向存储在 group_bys_ 向量中的第 idx 个分组表达式
   auto GetGroupByAt(uint32_t idx) const -> const AbstractExpressionRef & { return group_bys_[idx]; }
 
   /** @return The group by expressions */
+  // 返回所有的分组表达式
   auto GetGroupBys() const -> const std::vector<AbstractExpressionRef> & { return group_bys_; }
 
   /** @return The idx'th aggregate expression */
+  // 返回第 idx 个聚合表达式
   auto GetAggregateAt(uint32_t idx) const -> const AbstractExpressionRef & { return aggregates_[idx]; }
 
   /** @return The aggregate expressions */
+  // 返回所有的聚合表达式
   auto GetAggregates() const -> const std::vector<AbstractExpressionRef> & { return aggregates_; }
 
   /** @return The aggregate types */
+  // 返回所有的聚合类型
   auto GetAggregateTypes() const -> const std::vector<AggregationType> & { return agg_types_; }
 
+  // 用于推断聚合模式
+  // 三个参数：分组表达式、聚合表达式和聚合类型，并返回一个 Schema 对象
   static auto InferAggSchema(const std::vector<AbstractExpressionRef> &group_bys,
                              const std::vector<AbstractExpressionRef> &aggregates,
                              const std::vector<AggregationType> &agg_types) -> Schema;
@@ -82,10 +96,13 @@ class AggregationPlanNode : public AbstractPlanNode {
   BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(AggregationPlanNode);
 
   /** The GROUP BY expressions */
+  // 所有的分组表达式
   std::vector<AbstractExpressionRef> group_bys_;
   /** The aggregation expressions */
+  // 所有的聚合表达式
   std::vector<AbstractExpressionRef> aggregates_;
   /** The aggregation types */
+  // 所有的聚合类型
   std::vector<AggregationType> agg_types_;
 
  protected:

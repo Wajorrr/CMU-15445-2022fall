@@ -8,13 +8,21 @@
 #include "linenoise/linenoise.h"
 #include "utf8proc/utf8proc.h"
 
+// 用于计算 UTF-8 字符串的宽度
+// beg 和 end 分别指向字符串的起始和结束位置
+// width 是一个指向 size_t 类型的指针，用于存储计算得到的字符串宽度
 auto GetWidthOfUtf8(const void *beg, const void *end, size_t *width) -> int {
   size_t computed_width = 0;
   utf8proc_ssize_t n;
+  // 计算字符串的长度
   utf8proc_ssize_t size = static_cast<const char *>(end) - static_cast<const char *>(beg);
   auto pstring = static_cast<utf8proc_uint8_t const *>(beg);
   utf8proc_int32_t data;
+  // 使用 utf8proc_iterate 函数迭代字符串中的每个字符
+  // 返回当前字符的字节数，并将字符数据存储在 data 变量中
+  // 计算字符串的总大小 size，即 end 和 beg 之间的字节数
   while ((n = utf8proc_iterate(pstring, size, &data)) > 0) {
+    // 使用 utf8proc_charwidth 函数计算该字符的宽度
     computed_width += utf8proc_charwidth(data);
     pstring += n;
     size -= n;
@@ -95,6 +103,7 @@ auto main(int argc, char **argv) -> int {
     }
 
     try {
+      // 使用 fort::utf8_table库来使writer生成表格
       auto writer = bustub::FortTableWriter();
       bustub->ExecuteSql(query, writer);
       for (const auto &table : writer.tables_) {

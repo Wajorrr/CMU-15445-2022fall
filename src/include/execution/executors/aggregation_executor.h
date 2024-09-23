@@ -31,6 +31,8 @@ namespace bustub {
 /**
  * A simplified hash table that has all the necessary functionality for aggregations.
  */
+// 一个简化的哈希表，具有执行聚合操作所需的所有功能
+
 class SimpleAggregationHashTable {
  public:
   /**
@@ -43,6 +45,7 @@ class SimpleAggregationHashTable {
       : agg_exprs_{agg_exprs}, agg_types_{agg_types} {}
 
   /** @return The initial aggregrate value for this aggregation executor */
+  // 生成初始的聚合值。对于 CountStarAggregate 类型，初始值为 0；对于其他类型，初始值为 NULL
   auto GenerateInitialAggregateValue() -> AggregateValue {
     std::vector<Value> values{};
     for (const auto &agg_type : agg_types_) {
@@ -70,14 +73,61 @@ class SimpleAggregationHashTable {
    * @param[out] result The output aggregate value
    * @param input The input value
    */
+  // 将输入值合并到结果聚合值中
   void CombineAggregateValues(AggregateValue *result, const AggregateValue &input) {
     for (uint32_t i = 0; i < agg_exprs_.size(); i++) {
       switch (agg_types_[i]) {
         case AggregationType::CountStarAggregate:
+          // 对于 CountStarAggregate 类型，代码将结果聚合值加 1
+          result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
+          break;
         case AggregationType::CountAggregate:
+          // 首先检查输入值是否为 NULL，如果是则跳过
+          // 如果结果值为 NULL，则将其设置为 1；否则，将结果值加 1
+          if (input.aggregates_[i].IsNull()) {
+            break;
+          }
+          if (result->aggregates_[i].IsNull()) {
+            result->aggregates_[i] = ValueFactory::GetIntegerValue(1);
+          } else {
+            result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
+          }
+          break;
         case AggregationType::SumAggregate:
+          // 首先检查输入值是否为 NULL，如果是则跳过
+          // 如果结果值为 NULL，则将其设置为输入值；否则，将输入值加到结果值上
+          if (input.aggregates_[i].IsNull()) {
+            break;
+          }
+          if (result->aggregates_[i].IsNull()) {
+            result->aggregates_[i] = input.aggregates_[i];
+          } else {
+            result->aggregates_[i] = result->aggregates_[i].Add(input.aggregates_[i]);
+          }
+          break;
         case AggregationType::MinAggregate:
+          // 检查输入值是否为 NULL，如果是则跳过
+          // 如果结果值为 NULL，则将其设置为输入值；否则，将结果值更新为两者中的最小值
+          if (input.aggregates_[i].IsNull()) {
+            break;
+          }
+          if (result->aggregates_[i].IsNull()) {
+            result->aggregates_[i] = input.aggregates_[i];
+          } else {
+            result->aggregates_[i] = result->aggregates_[i].Min(input.aggregates_[i]);
+          }
+          break;
         case AggregationType::MaxAggregate:
+          // 首先检查输入值是否为 NULL，如果是则跳过
+          // 如果结果值为 NULL，则将其设置为输入值；否则，将结果值更新为两者中的最大值
+          if (input.aggregates_[i].IsNull()) {
+            break;
+          }
+          if (result->aggregates_[i].IsNull()) {
+            result->aggregates_[i] = input.aggregates_[i];
+          } else {
+            result->aggregates_[i] = result->aggregates_[i].Max(input.aggregates_[i]);
+          }
           break;
       }
     }
@@ -88,19 +138,28 @@ class SimpleAggregationHashTable {
    * @param agg_key the key to be inserted
    * @param agg_val the value to be inserted
    */
+  // 将一个值插入哈希表，并将其与当前的聚合结果合并。如果键不存在，则生成初始聚合值
   void InsertCombine(const AggregateKey &agg_key, const AggregateValue &agg_val) {
+    // 检查哈希表 ht_ 中是否已经存在指定的聚合键 agg_key
     if (ht_.count(agg_key) == 0) {
+      // 如果不存在，则执行插入操作，并将其值设置为初始聚合值
       ht_.insert({agg_key, GenerateInitialAggregateValue()});
     }
+    // 调用 CombineAggregateValues 方法
+    // 将输入的聚合值 agg_val 与哈希表中对应键的当前聚合值进行合并
     CombineAggregateValues(&ht_[agg_key], agg_val);
   }
+
+  void InsertIntialCombine() { ht_.insert({{std::vector<Value>()}, GenerateInitialAggregateValue()}); }
 
   /**
    * Clear the hash table
    */
+  // 清空哈希表。
   void Clear() { ht_.clear(); }
 
   /** An iterator over the aggregation hash table */
+  // 定义了一个嵌套的 Iterator 类，用于遍历哈希表
   class Iterator {
    public:
     /** Creates an iterator for the aggregate map. */
@@ -137,10 +196,13 @@ class SimpleAggregationHashTable {
 
  private:
   /** The hash table is just a map from aggregate keys to aggregate values */
+  // 使用 std::unordered_map 实现的哈希表，将 AggregateKey 映射到 AggregateValue
   std::unordered_map<AggregateKey, AggregateValue> ht_{};
   /** The aggregate expressions that we have */
+  // 聚合表达式
   const std::vector<AbstractExpressionRef> &agg_exprs_;
   /** The types of aggregations that we have */
+  // 聚合类型
   const std::vector<AggregationType> &agg_types_;
 };
 
@@ -148,6 +210,7 @@ class SimpleAggregationHashTable {
  * AggregationExecutor executes an aggregation operation (e.g. COUNT, SUM, MIN, MAX)
  * over the tuples produced by a child executor.
  */
+// 接受执行上下文、聚合计划节点和子执行器，并将它们存储在类的成员变量中
 class AggregationExecutor : public AbstractExecutor {
  public:
   /**
@@ -178,17 +241,22 @@ class AggregationExecutor : public AbstractExecutor {
 
  private:
   /** @return The tuple as an AggregateKey */
+  // 生成聚合键
   auto MakeAggregateKey(const Tuple *tuple) -> AggregateKey {
     std::vector<Value> keys;
+    // 生成一个聚合键 AggregateKey，用于在聚合操作中对元组进行分组
     for (const auto &expr : plan_->GetGroupBys()) {
+      // 对每个表达式进行评估
       keys.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
     }
     return {keys};
   }
 
   /** @return The tuple as an AggregateValue */
+  // 生成聚合值
   auto MakeAggregateValue(const Tuple *tuple) -> AggregateValue {
     std::vector<Value> vals;
+    // 生成一个聚合值 AggregateValue，用于在聚合操作中对元组进行聚合计算
     for (const auto &expr : plan_->GetAggregates()) {
       vals.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
     }
@@ -202,7 +270,9 @@ class AggregationExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table */
   // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
   // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
 };
 }  // namespace bustub

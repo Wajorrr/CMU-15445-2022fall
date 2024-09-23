@@ -27,6 +27,7 @@ namespace bustub {
 /**
  * The SeqScanPlanNode represents a sequential table scan operation.
  */
+// 用于表示顺序表扫描操作
 class SeqScanPlanNode : public AbstractPlanNode {
  public:
   /**
@@ -34,6 +35,9 @@ class SeqScanPlanNode : public AbstractPlanNode {
    * @param output The output schema of this sequential scan plan node
    * @param table_oid The identifier of table to be scanned
    */
+  // 用于创建一个新的顺序扫描计划节点实例
+  // 输出模式 output、要扫描的表的标识符 table_oid、
+  // 表名 table_name 和一个可选的过滤谓词 filter_predicate
   SeqScanPlanNode(SchemaRef output, table_oid_t table_oid, std::string table_name,
                   AbstractExpressionRef filter_predicate = nullptr)
       : AbstractPlanNode(std::move(output), {}),
@@ -45,8 +49,11 @@ class SeqScanPlanNode : public AbstractPlanNode {
   auto GetType() const -> PlanType override { return PlanType::SeqScan; }
 
   /** @return The identifier of the table that should be scanned */
+  // 返回要扫描的表的标识符 table_oid_
   auto GetTableOid() const -> table_oid_t { return table_oid_; }
 
+  // 用于推断扫描的模式
+  // 它接收一个 BoundBaseTableRef 类型的参数 table_ref，并返回一个 Schema 对象
   static auto InferScanSchema(const BoundBaseTableRef &table_ref) -> Schema;
 
   BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(SeqScanPlanNode);

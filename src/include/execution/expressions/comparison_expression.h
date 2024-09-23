@@ -30,18 +30,25 @@ enum class ComparisonType { Equal, NotEqual, LessThan, LessThanOrEqual, GreaterT
 /**
  * ComparisonExpression represents two expressions being compared.
  */
+// 用于表示两个表达式之间的比较操作
 class ComparisonExpression : public AbstractExpression {
  public:
   /** Creates a new comparison expression representing (left comp_type right). */
   ComparisonExpression(AbstractExpressionRef left, AbstractExpressionRef right, ComparisonType comp_type)
       : AbstractExpression({std::move(left), std::move(right)}, TypeId::BOOLEAN), comp_type_{comp_type} {}
 
+  // 用于评估表达式
+  // 接收一个元组和一个模式作为参数，分别评估左操作数和右操作数
+  // 然后调用 PerformComparison 方法进行比较
   auto Evaluate(const Tuple *tuple, const Schema &schema) const -> Value override {
     Value lhs = GetChildAt(0)->Evaluate(tuple, schema);
     Value rhs = GetChildAt(1)->Evaluate(tuple, schema);
     return ValueFactory::GetBooleanValue(PerformComparison(lhs, rhs));
   }
 
+  // 用于评估连接操作中的表达式
+  // 接收两个元组和两个模式作为参数，分别评估左操作数和右操作数
+  // 然后调用 PerformComparison 方法进行比较
   auto EvaluateJoin(const Tuple *left_tuple, const Schema &left_schema, const Tuple *right_tuple,
                     const Schema &right_schema) const -> Value override {
     Value lhs = GetChildAt(0)->EvaluateJoin(left_tuple, left_schema, right_tuple, right_schema);
@@ -59,8 +66,10 @@ class ComparisonExpression : public AbstractExpression {
   ComparisonType comp_type_;
 
  private:
+  // 接收两个 Value 对象作为参数，并返回一个 CmpBool 类型的结果
   auto PerformComparison(const Value &lhs, const Value &rhs) const -> CmpBool {
     switch (comp_type_) {
+      // 根据比较类型调用相应的比较函数
       case ComparisonType::Equal:
         return lhs.CompareEquals(rhs);
       case ComparisonType::NotEqual:

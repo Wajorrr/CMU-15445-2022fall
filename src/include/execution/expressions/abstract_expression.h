@@ -21,12 +21,12 @@
 #include "fmt/format.h"
 #include "storage/table/tuple.h"
 
-#define BUSTUB_EXPR_CLONE_WITH_CHILDREN(cname)                                                                   \
-  auto CloneWithChildren(std::vector<AbstractExpressionRef> children) const->std::unique_ptr<AbstractExpression> \
-      override {                                                                                                 \
-    auto expr = cname(*this);                                                                                    \
-    expr.children_ = children;                                                                                   \
-    return std::make_unique<cname>(std::move(expr));                                                             \
+#define BUSTUB_EXPR_CLONE_WITH_CHILDREN(cname)                                                                     \
+  auto CloneWithChildren(std::vector<AbstractExpressionRef> children) const -> std::unique_ptr<AbstractExpression> \
+                                                                                override {                         \
+    auto expr = cname(*this);                                                                                      \
+    expr.children_ = children;                                                                                     \
+    return std::make_unique<cname>(std::move(expr));                                                               \
   }
 
 namespace bustub {
@@ -38,6 +38,8 @@ using AbstractExpressionRef = std::shared_ptr<AbstractExpression>;
  * AbstractExpression is the base class of all the expressions in the system.
  * Expressions are modeled as trees, i.e. every expression may have a variable number of children.
  */
+// 抽象表达式类 AbstractExpression，它是数据库系统中所有表达式的基类
+// 表达式在系统中被建模为树结构，每个表达式可以有可变数量的子表达式
 class AbstractExpression {
  public:
   /**
@@ -45,6 +47,7 @@ class AbstractExpression {
    * @param children the children of this abstract expression
    * @param ret_type the return type of this abstract expression when it is evaluated
    */
+  // 初始化表达式的子表达式和返回类型
   AbstractExpression(std::vector<AbstractExpressionRef> children, TypeId ret_type)
       : children_{std::move(children)}, ret_type_{ret_type} {}
 
@@ -52,6 +55,7 @@ class AbstractExpression {
   virtual ~AbstractExpression() = default;
 
   /** @return The value obtained by evaluating the tuple with the given schema */
+  // 评估表达式并返回结果值
   virtual auto Evaluate(const Tuple *tuple, const Schema &schema) const -> Value = 0;
 
   /**
@@ -62,22 +66,28 @@ class AbstractExpression {
    * @param right_schema The right tuple's schema
    * @return The value obtained by evaluating a JOIN on the left and right
    */
+  // 评估连接操作的表达式并返回结果值
   virtual auto EvaluateJoin(const Tuple *left_tuple, const Schema &left_schema, const Tuple *right_tuple,
                             const Schema &right_schema) const -> Value = 0;
 
   /** @return the child_idx'th child of this expression */
+  // 获取指定索引的子表达式
   auto GetChildAt(uint32_t child_idx) const -> const AbstractExpressionRef & { return children_[child_idx]; }
 
   /** @return the children of this expression, ordering may matter */
+  // 获取所有子表达式
   auto GetChildren() const -> const std::vector<AbstractExpressionRef> & { return children_; }
 
   /** @return the type of this expression if it were to be evaluated */
+  // 获取表达式的返回类型
   virtual auto GetReturnType() const -> TypeId { return ret_type_; }
 
   /** @return the string representation of the plan node and its children */
+  // 返回表达式的字符串表示，默认返回"<unknown>"
   virtual auto ToString() const -> std::string { return "<unknown>"; }
 
   /** @return a new expression with new children */
+  // 创建一个带有新子表达式的新表达式
   virtual auto CloneWithChildren(std::vector<AbstractExpressionRef> children) const
       -> std::unique_ptr<AbstractExpression> = 0;
 
@@ -91,6 +101,7 @@ class AbstractExpression {
 
 }  // namespace bustub
 
+// 格式化器，用于将表达式对象格式化为字符串。使用了fmt库来实现格式化功能
 template <typename T>
 struct fmt::formatter<T, std::enable_if_t<std::is_base_of<bustub::AbstractExpression, T>::value, char>>
     : fmt::formatter<std::string> {

@@ -29,30 +29,39 @@ TableHeap::TableHeap(BufferPoolManager *buffer_pool_manager, LockManager *lock_m
                      Transaction *txn)
     : buffer_pool_manager_(buffer_pool_manager), lock_manager_(lock_manager), log_manager_(log_manager) {
   // Initialize the first table page.
+  // 首先通过调用 buffer_pool_manager_ 的 NewPage 方法来创建一个新的页，并将其转换为 TablePage 类型
   auto first_page = reinterpret_cast<TablePage *>(buffer_pool_manager_->NewPage(&first_page_id_));
   BUSTUB_ASSERT(first_page != nullptr,
                 "Couldn't create a page for the table heap. Have you completed the buffer pool manager project?");
+  // 初始化该页。初始化参数包括页 ID、页大小、无效的日志序列号（INVALID_LSN）、日志管理器和事务
   first_page->Init(first_page_id_, BUSTUB_PAGE_SIZE, INVALID_LSN, log_manager_, txn);
+  // 调用 buffer_pool_manager_ 的 UnpinPage 方法，将新创建的页从缓冲池中解锁，并将其标记为脏页
   buffer_pool_manager_->UnpinPage(first_page_id_, true);
 }
 
+// 用于将一个元组插入到表堆中
 auto TableHeap::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn) -> bool {
+  // 检查元组的大小是否超过了单个页面的大小
   if (tuple.size_ + 32 > BUSTUB_PAGE_SIZE) {  // larger than one page size
     txn->SetState(TransactionState::ABORTED);
     return false;
   }
 
+  // 尝试从缓冲池管理器中获取第一个页面。如果获取失败，事务将被标记为中止，并返回 false
   auto cur_page = static_cast<TablePage *>(buffer_pool_manager_->FetchPage(first_page_id_));
   if (cur_page == nullptr) {
     txn->SetState(TransactionState::ABORTED);
     return false;
   }
 
+  // 对该页面加写锁
   cur_page->WLatch();
 
   // Insert into the first page with enough space. If no such page exists, create a new page and insert into that.
   // INVARIANT: cur_page is WLatched if you leave the loop normally.
+  // 循环，尝试将元组插入到当前页面
   while (!cur_page->InsertTuple(tuple, rid, txn, lock_manager_, log_manager_)) {
+    // 如果当前页面没有足够的空间来容纳新的元组，继续查找下一个页面
     auto next_page_id = cur_page->GetNextPageId();
     // If the next page is a valid page,
     if (next_page_id != INVALID_PAGE_ID) {
@@ -62,10 +71,11 @@ auto TableHeap::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn) -> b
       cur_page->WUnlatch();
       buffer_pool_manager_->UnpinPage(cur_page->GetTablePageId(), false);
       cur_page = next_page;
-    } else {
+    } else {  // 若下一个页面不存在，则创建一个新页面
       // Otherwise we have run out of valid pages. We need to create a new page.
       auto new_page = static_cast<TablePage *>(buffer_pool_manager_->NewPage(&next_page_id));
       // If we could not create a new page,
+      // 如果创建新页面失败，事务将被标记为中止，并返回 false
       if (new_page == nullptr) {
         // Then life sucks and we abort the transaction.
         cur_page->WUnlatch();
@@ -74,6 +84,7 @@ auto TableHeap::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn) -> b
         return false;
       }
       // Otherwise we were able to create a new page. We initialize it now.
+      // 初始化新页面
       new_page->WLatch();
       cur_page->SetNextPageId(next_page_id);
       new_page->Init(next_page_id, BUSTUB_PAGE_SIZE, cur_page->GetTablePageId(), log_manager_, txn);
@@ -87,6 +98,7 @@ auto TableHeap::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn) -> b
   cur_page->WUnlatch();
   buffer_pool_manager_->UnpinPage(cur_page->GetTablePageId(), true);
   // Update the transaction's write set.
+  // 更新事务的写集
   txn->GetWriteSet()->emplace_back(*rid, WType::INSERT, Tuple{}, this);
   return true;
 }
@@ -94,18 +106,22 @@ auto TableHeap::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn) -> b
 auto TableHeap::MarkDelete(const RID &rid, Transaction *txn) -> bool {
   // TODO(Amadou): remove empty page
   // Find the page which contains the tuple.
+  // 通过给定的 RID 找到包含该元组的页面
   auto page = reinterpret_cast<TablePage *>(buffer_pool_manager_->FetchPage(rid.GetPageId()));
   // If the page could not be found, then abort the transaction.
+  // 如果页面无法找到，函数将事务状态设置为中止，并返回 false，表示操作失败
   if (page == nullptr) {
     txn->SetState(TransactionState::ABORTED);
     return false;
   }
   // Otherwise, mark the tuple as deleted.
   page->WLatch();
+  // 调用页面的 MarkDelete 方法，将元组标记为已删除
   page->MarkDelete(rid, txn, lock_manager_, log_manager_);
   page->WUnlatch();
   buffer_pool_manager_->UnpinPage(page->GetTablePageId(), true);
   // Update the transaction's write set.
+  // 更新事务的写集
   txn->GetWriteSet()->emplace_back(rid, WType::DELETE, Tuple{}, this);
   return true;
 }
@@ -121,11 +137,13 @@ auto TableHeap::UpdateTuple(const Tuple &tuple, const RID &rid, Transaction *txn
   // Update the tuple; but first save the old value for rollbacks.
   Tuple old_tuple;
   page->WLatch();
+  // 更新元组，返回是否更新成功
   bool is_updated = page->UpdateTuple(tuple, &old_tuple, rid, txn, lock_manager_, log_manager_);
   page->WUnlatch();
   buffer_pool_manager_->UnpinPage(page->GetTablePageId(), is_updated);
   // Update the transaction's write set.
   if (is_updated && txn->GetState() != TransactionState::ABORTED) {
+    // 如果更新成功，将更新操作添加到事务的写集中，旧元组数据也一并保存
     txn->GetWriteSet()->emplace_back(rid, WType::UPDATE, old_tuple, this);
   }
   return is_updated;
@@ -137,6 +155,7 @@ void TableHeap::ApplyDelete(const RID &rid, Transaction *txn) {
   BUSTUB_ASSERT(page != nullptr, "Couldn't find a page containing that RID.");
   // Delete the tuple from the page.
   page->WLatch();
+  // 调用页面的 ApplyDelete 方法，执行删除操作
   page->ApplyDelete(rid, txn, log_manager_);
   /** Commented out to make compatible with p4; This is called only on commit or delete, which consequently unlocks the
    * tuple; so should be fine */
@@ -151,6 +170,7 @@ void TableHeap::RollbackDelete(const RID &rid, Transaction *txn) {
   BUSTUB_ASSERT(page != nullptr, "Couldn't find a page containing that RID.");
   // Rollback the delete.
   page->WLatch();
+  // 调用页面的 RollbackDelete 方法，执行回滚删除操作
   page->RollbackDelete(rid, txn, log_manager_);
   page->WUnlatch();
   buffer_pool_manager_->UnpinPage(page->GetTablePageId(), true);
@@ -168,6 +188,7 @@ auto TableHeap::GetTuple(const RID &rid, Tuple *tuple, Transaction *txn, bool ac
   if (acquire_read_lock) {
     page->RLatch();
   }
+  // 调用页面的 GetTuple 方法，从页面中读取元组
   bool res = page->GetTuple(rid, tuple, txn, lock_manager_);
   if (acquire_read_lock) {
     page->RUnlatch();
@@ -176,6 +197,7 @@ auto TableHeap::GetTuple(const RID &rid, Tuple *tuple, Transaction *txn, bool ac
   return res;
 }
 
+// 获取表堆的迭代器
 auto TableHeap::Begin(Transaction *txn) -> TableIterator {
   // Start an iterator from the first page.
   // TODO(Wuwen): Hacky fix for now. Removing empty pages is a better way to handle this.
@@ -185,6 +207,7 @@ auto TableHeap::Begin(Transaction *txn) -> TableIterator {
     auto page = static_cast<TablePage *>(buffer_pool_manager_->FetchPage(page_id));
     page->RLatch();
     // If this fails because there is no tuple, then RID will be the default-constructed value, which means EOF.
+    // 通过调用页面的 GetFirstTupleRid 方法，获取第一个元组的 RID
     auto found_tuple = page->GetFirstTupleRid(&rid);
     page->RUnlatch();
     buffer_pool_manager_->UnpinPage(page_id, false);
@@ -193,6 +216,7 @@ auto TableHeap::Begin(Transaction *txn) -> TableIterator {
     }
     page_id = page->GetNextPageId();
   }
+  // 返回一个 TableIterator 对象，表示表堆的起始位置
   return {this, rid, txn};
 }
 

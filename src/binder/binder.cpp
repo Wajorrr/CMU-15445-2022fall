@@ -42,6 +42,7 @@ namespace bustub {
 
 Binder::Binder(const Catalog &catalog) : catalog_(catalog) {}
 
+// 尝试将查询解析为一系列 SQL 语句，并将解析后的语句存储在 statement_nodes_ 变量中
 void Binder::ParseAndSave(const std::string &query) {
   parser_.Parse(query);
   if (!parser_.success) {

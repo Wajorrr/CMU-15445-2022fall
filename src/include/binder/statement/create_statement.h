@@ -23,8 +23,8 @@ class CreateStatement : public BoundStatement {
  public:
   explicit CreateStatement(std::string table, std::vector<Column> columns);
 
-  std::string table_;
-  std::vector<Column> columns_;
+  std::string table_;            // 存储表的名称
+  std::vector<Column> columns_;  // 存储表的列信息
 
   auto ToString() const -> std::string override;
 };

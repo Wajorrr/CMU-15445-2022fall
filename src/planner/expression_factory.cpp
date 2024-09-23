@@ -10,6 +10,7 @@
 
 namespace bustub {
 // NOLINTNEXTLINE - weird error on clang-tidy.
+// 用于根据聚合函数的名称和参数生成相应的聚合调用
 auto Planner::GetAggCallFromFactory(const std::string &func_name, std::vector<AbstractExpressionRef> args)
     -> std::tuple<AggregationType, std::vector<AbstractExpressionRef>> {
   if (args.empty()) {
@@ -35,8 +36,11 @@ auto Planner::GetAggCallFromFactory(const std::string &func_name, std::vector<Ab
   throw Exception(fmt::format("unsupported agg_call {} with {} args", func_name, args.size()));
 }
 
+// 根据操作符名称（op_name）生成相应的二元表达式对象
+//  op_name：一个字符串，表示操作符名称, left：表示左操作数, right：表示右操作数
 auto Planner::GetBinaryExpressionFromFactory(const std::string &op_name, AbstractExpressionRef left,
                                              AbstractExpressionRef right) -> AbstractExpressionRef {
+  // 比较操作符
   if (op_name == "=" || op_name == "==") {
     return std::make_shared<ComparisonExpression>(std::move(left), std::move(right), ComparisonType::Equal);
   }
@@ -56,12 +60,14 @@ auto Planner::GetBinaryExpressionFromFactory(const std::string &op_name, Abstrac
     return std::make_shared<ComparisonExpression>(std::move(left), std::move(right),
                                                   ComparisonType::GreaterThanOrEqual);
   }
+  // 算术操作符
   if (op_name == "+") {
     return std::make_shared<ArithmeticExpression>(std::move(left), std::move(right), ArithmeticType::Plus);
   }
   if (op_name == "-") {
     return std::make_shared<ArithmeticExpression>(std::move(left), std::move(right), ArithmeticType::Minus);
   }
+  // 逻辑操作符
   if (op_name == "and") {
     return std::make_shared<LogicExpression>(std::move(left), std::move(right), LogicType::And);
   }

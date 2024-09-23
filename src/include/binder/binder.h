@@ -86,8 +86,10 @@ class UpdateStatement;
  * The binder is responsible for transforming the Postgres parse tree to a binder tree
  * which can be recognized unambiguously by the BusTub planner.
  */
+// Binder 类的主要职责是将 Postgres 解析树转换为 BusTub 计划器可以识别的绑定树
 class Binder {
  public:
+  // 元数据 Catalog 会在绑定过程中使用。用户应确保它的生命周期超过 Binder，否则它是一个悬空引用。
   explicit Binder(const Catalog &catalog);
 
   /** Attempts to parse a query into a series of SQL statements. The parsed statements
@@ -108,6 +110,7 @@ class Binder {
   void SaveParseTree(duckdb_libpgquery::PGList *tree);
 
   /** Transform a Postgres statement into a single SQL statement. */
+  // 将 Postgres 语句转换为单个 SQL 语句，并返回一个 BoundStatement 对象
   auto BindStatement(duckdb_libpgquery::PGNode *stmt) -> std::unique_ptr<BoundStatement>;
 
   /** Get the std::string representation of a Postgres node tag. */
@@ -116,6 +119,7 @@ class Binder {
   // The following parts are undocumented. One `BindXXX` functions simply corresponds to a
   // node type in the Postgres parse tree.
 
+  // BindXXX 函数对应于 Postgres 解析树中的一个节点类型
   auto BindExplain(duckdb_libpgquery::PGExplainStmt *stmt) -> std::unique_ptr<ExplainStatement>;
 
   auto BindCreate(duckdb_libpgquery::PGCreateStmt *pg_stmt) -> std::unique_ptr<CreateStatement>;
@@ -126,8 +130,8 @@ class Binder {
 
   auto BindRangeSubselect(duckdb_libpgquery::PGRangeSubselect *root) -> std::unique_ptr<BoundTableRef>;
 
-  auto BindSubquery(duckdb_libpgquery::PGSelectStmt *node, const std::string &alias)
-      -> std::unique_ptr<BoundSubqueryRef>;
+  auto BindSubquery(duckdb_libpgquery::PGSelectStmt *node,
+                    const std::string &alias) -> std::unique_ptr<BoundSubqueryRef>;
 
   auto BindSelectList(duckdb_libpgquery::PGList *list) -> std::vector<std::unique_ptr<BoundExpression>>;
 
@@ -167,17 +171,17 @@ class Binder {
 
   auto GetAllColumns(const BoundTableRef &scope) -> std::vector<std::unique_ptr<BoundExpression>>;
 
-  auto ResolveColumn(const BoundTableRef &scope, const std::vector<std::string> &col_name)
-      -> std::unique_ptr<BoundExpression>;
+  auto ResolveColumn(const BoundTableRef &scope,
+                     const std::vector<std::string> &col_name) -> std::unique_ptr<BoundExpression>;
 
-  auto ResolveColumnInternal(const BoundTableRef &table_ref, const std::vector<std::string> &col_name)
-      -> std::unique_ptr<BoundExpression>;
+  auto ResolveColumnInternal(const BoundTableRef &table_ref,
+                             const std::vector<std::string> &col_name) -> std::unique_ptr<BoundExpression>;
 
   auto ResolveColumnRefFromSelectList(const std::vector<std::vector<std::string>> &subquery_select_list,
                                       const std::vector<std::string> &col_name) -> std::unique_ptr<BoundColumnRef>;
 
-  auto ResolveColumnRefFromBaseTableRef(const BoundBaseTableRef &table_ref, const std::vector<std::string> &col_name)
-      -> std::unique_ptr<BoundColumnRef>;
+  auto ResolveColumnRefFromBaseTableRef(const BoundBaseTableRef &table_ref,
+                                        const std::vector<std::string> &col_name) -> std::unique_ptr<BoundColumnRef>;
 
   auto ResolveColumnRefFromSubqueryRef(const BoundSubqueryRef &subquery_ref, const std::string &alias,
                                        const std::vector<std::string> &col_name) -> std::unique_ptr<BoundColumnRef>;

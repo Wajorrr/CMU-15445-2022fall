@@ -22,6 +22,8 @@
 
 namespace bustub {
 
+// 这些常量定义了模拟数据
+// 包括助教列表、助教办公时间、课程日期、课程布尔值和模拟表列表。这些数据用于模拟不同的表和其内容
 static const char *ta_list_2022[] = {"amstqq",      "durovo",     "joyceliaoo", "karthik-ramanathan-3006",
                                      "kush789",     "lmwnshn",    "mkpjnx",     "skyzh",
                                      "thepinetree", "timlee0119", "yliang412"};
@@ -45,7 +47,10 @@ const char *mock_table_list[] = {"__mock_table_1", "__mock_table_2", "__mock_tab
 
 static const int GRAPH_NODE_CNT = 10;
 
+// 根据传入的表名返回相应的表模式（Schema）
 auto GetMockTableSchemaOf(const std::string &table) -> Schema {
+  // 根据表名返回相应的模式
+  // 如果表名不匹配，抛出异常
   if (table == "__mock_table_1") {
     return Schema{std::vector{{Column{"colA", TypeId::INTEGER}, {Column{"colB", TypeId::INTEGER}}}}};
   }
@@ -99,7 +104,10 @@ auto GetMockTableSchemaOf(const std::string &table) -> Schema {
   throw bustub::Exception(fmt::format("mock table {} not found", table));
 }
 
+// 根据传入的计划节点返回相应的表大小
 auto GetSizeOf(const MockScanPlanNode *plan) -> size_t {
+  // 根据表名返回相应的表大小
+  // 如果表名不匹配，返回 0
   const auto &table = plan->GetTable();
 
   if (table == "__mock_table_1") {
@@ -165,7 +173,9 @@ auto GetSizeOf(const MockScanPlanNode *plan) -> size_t {
   return 0;
 }
 
+// 根据传入的计划节点返回表是否需要打乱顺序
 auto GetShuffled(const MockScanPlanNode *plan) -> bool {
+  // 根据表名返回是否需要打乱
   const auto &table = plan->GetTable();
 
   if (table == "__mock_t1_50k") {
@@ -183,7 +193,11 @@ auto GetShuffled(const MockScanPlanNode *plan) -> bool {
   return false;
 }
 
+// 根据传入的计划节点返回相应的生成元组的函数
+// 如果表名不匹配任何已知的表，则返回一个默认的生成全零元组的函数
 auto GetFunctionOf(const MockScanPlanNode *plan) -> std::function<Tuple(size_t)> {
+  // 根据表名返回相应的生成元组的函数
+  // 如果表名不匹配，返回一个默认的生成全零元组的函数
   const auto &table = plan->GetTable();
 
   if (table == "__mock_table_1") {
@@ -379,8 +393,11 @@ auto GetFunctionOf(const MockScanPlanNode *plan) -> std::function<Tuple(size_t)>
   };
 }
 
+// 初始化 MockScanExecutor 对象
 MockScanExecutor::MockScanExecutor(ExecutorContext *exec_ctx, const MockScanPlanNode *plan)
     : AbstractExecutor{exec_ctx}, plan_{plan}, func_(GetFunctionOf(plan)), size_(GetSizeOf(plan)) {
+  // 调用 GetFunctionOf 获取生成元组的函数，调用 GetSizeOf 获取表的大小
+  // 并根据 GetShuffled 的结果决定是否打乱索引
   if (GetShuffled(plan)) {
     for (size_t i = 0; i < size_; i++) {
       shuffled_idx_.push_back(i);
@@ -396,11 +413,13 @@ void MockScanExecutor::Init() {
   cursor_ = 0;
 }
 
+// 用于获取下一个元组
 auto MockScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (cursor_ == size_) {
     // Scan complete
     return EXECUTOR_EXHAUSTED;
   }
+  // 根据是否打乱索引来生成元组，并将游标加 1，返回 EXECUTOR_ACTIVE
   if (shuffled_idx_.empty()) {
     *tuple = func_(cursor_);
   } else {

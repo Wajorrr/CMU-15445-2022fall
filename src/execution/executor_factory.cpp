@@ -42,20 +42,23 @@
 
 namespace bustub {
 
-auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPlanNodeRef &plan)
-    -> std::unique_ptr<AbstractExecutor> {
+auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx,
+                                     const AbstractPlanNodeRef &plan) -> std::unique_ptr<AbstractExecutor> {
   switch (plan->GetType()) {
     // Create a new sequential scan executor
+    // 如果计划类型是 SeqScan，则创建一个 SeqScanExecutor，顺序扫描执行器
     case PlanType::SeqScan: {
       return std::make_unique<SeqScanExecutor>(exec_ctx, dynamic_cast<const SeqScanPlanNode *>(plan.get()));
     }
 
     // Create a new index scan executor
+    // 如果计划类型是 IndexScan，则创建一个 IndexScanExecutor，索引扫描执行器
     case PlanType::IndexScan: {
       return std::make_unique<IndexScanExecutor>(exec_ctx, dynamic_cast<const IndexScanPlanNode *>(plan.get()));
     }
 
     // Create a new insert executor
+    // 如果计划类型是 Insert，则创建一个 InsertExecutor，并递归创建子计划的执行器
     case PlanType::Insert: {
       auto insert_plan = dynamic_cast<const InsertPlanNode *>(plan.get());
       auto child_executor = ExecutorFactory::CreateExecutor(exec_ctx, insert_plan->GetChildPlan());
@@ -63,6 +66,7 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new update executor
+    // 如果计划类型是 Update，则创建一个 UpdateExecutor，并递归创建子计划的执行器
     case PlanType::Update: {
       auto update_plan = dynamic_cast<const UpdatePlanNode *>(plan.get());
       auto child_executor = ExecutorFactory::CreateExecutor(exec_ctx, update_plan->GetChildPlan());
@@ -70,6 +74,7 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new delete executor
+    // 如果计划类型是 Delete，则创建一个 DeleteExecutor，并递归创建子计划的执行器
     case PlanType::Delete: {
       auto delete_plan = dynamic_cast<const DeletePlanNode *>(plan.get());
       auto child_executor = ExecutorFactory::CreateExecutor(exec_ctx, delete_plan->GetChildPlan());
@@ -77,6 +82,7 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new limit executor
+    // 如果计划类型是 Limit，则创建一个 LimitExecutor，并递归创建子计划的执行器
     case PlanType::Limit: {
       auto limit_plan = dynamic_cast<const LimitPlanNode *>(plan.get());
       auto child_executor = ExecutorFactory::CreateExecutor(exec_ctx, limit_plan->GetChildPlan());
@@ -84,6 +90,7 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new aggregation executor
+    // 如果计划类型是 Aggregation，则创建一个 AggregationExecutor，并递归创建子计划的执行器
     case PlanType::Aggregation: {
       auto agg_plan = dynamic_cast<const AggregationPlanNode *>(plan.get());
       auto child_executor = ExecutorFactory::CreateExecutor(exec_ctx, agg_plan->GetChildPlan());
@@ -91,6 +98,8 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new nested-loop join executor
+    // 嵌套循环连接执行器
+    // 如果计划类型是 NestedLoopJoin，则创建一个 NestedLoopJoinExecutor，并递归创建左右子计划的执行器
     case PlanType::NestedLoopJoin: {
       auto nested_loop_join_plan = dynamic_cast<const NestedLoopJoinPlanNode *>(plan.get());
       auto left = ExecutorFactory::CreateExecutor(exec_ctx, nested_loop_join_plan->GetLeftPlan());
@@ -100,6 +109,8 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new nested-index join executor
+    // 嵌套索引连接执行器
+    // 如果计划类型是 NestedIndexJoin，则创建一个 NestIndexJoinExecutor，并递归创建子计划的执行器
     case PlanType::NestedIndexJoin: {
       auto nested_index_join_plan = dynamic_cast<const NestedIndexJoinPlanNode *>(plan.get());
       auto left = ExecutorFactory::CreateExecutor(exec_ctx, nested_index_join_plan->GetChildPlan());
@@ -107,6 +118,8 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new hash join executor
+    // 哈希连接执行器
+    // 如果计划类型是 HashJoin，则创建一个 HashJoinExecutor，并递归创建左右子计划的执行器
     case PlanType::HashJoin: {
       auto hash_join_plan = dynamic_cast<const HashJoinPlanNode *>(plan.get());
       auto left = ExecutorFactory::CreateExecutor(exec_ctx, hash_join_plan->GetLeftPlan());
@@ -115,39 +128,55 @@ auto ExecutorFactory::CreateExecutor(ExecutorContext *exec_ctx, const AbstractPl
     }
 
     // Create a new mock scan executor
+    // MockScan 执行器
+    // 首先将计划节点转换为 MockScanPlanNode 类型，然后创建并返回一个 MockScanExecutor 对象
     case PlanType::MockScan: {
       const auto *mock_scan_plan = dynamic_cast<const MockScanPlanNode *>(plan.get());
       return std::make_unique<MockScanExecutor>(exec_ctx, mock_scan_plan);
     }
 
     // Create a new projection executor
+    // 首先将计划节点转换为 ProjectionPlanNode 类型
+    // 然后递归调用 ExecutorFactory::CreateExecutor 为子计划创建执行器
+    // 最后创建并返回一个 ProjectionExecutor 对象
     case PlanType::Projection: {
       const auto *projection_plan = dynamic_cast<const ProjectionPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, projection_plan->GetChildPlan());
       return std::make_unique<ProjectionExecutor>(exec_ctx, projection_plan, std::move(child));
     }
 
-      // Create a new filter executor
+    // Create a new filter executor
+    // 首先将计划节点转换为 FilterPlanNode 类型
+    // 然后递归调用 ExecutorFactory::CreateExecutor 为子计划创建执行器
+    // 最后创建并返回一个 FilterExecutor 对象
     case PlanType::Filter: {
       const auto *filter_plan = dynamic_cast<const FilterPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, filter_plan->GetChildPlan());
       return std::make_unique<FilterExecutor>(exec_ctx, filter_plan, std::move(child));
     }
 
-      // Create a new filter executor
+    // Create a new filter executor
+    // 首先将计划节点转换为 ValuesPlanNode 类型
+    // 然后创建并返回一个 ValuesExecutor 对象
     case PlanType::Values: {
       const auto *values_plan = dynamic_cast<const ValuesPlanNode *>(plan.get());
       return std::make_unique<ValuesExecutor>(exec_ctx, values_plan);
     }
 
-      // Create a new sort executor
+    // Create a new sort executor
+    // 首先将计划节点转换为 SortPlanNode 类型
+    // 然后，调用 ExecutorFactory::CreateExecutor 创建子计划的执行器
+    // 最后，使用执行上下文、排序计划节点和子执行器创建并返回一个 SortExecutor 对象
     case PlanType::Sort: {
       const auto *sort_plan = dynamic_cast<const SortPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, sort_plan->GetChildPlan());
       return std::make_unique<SortExecutor>(exec_ctx, sort_plan, std::move(child));
     }
 
-      // Create a new topN executor
+    // Create a new topN executor
+    // 首先将计划节点转换为 TopNPlanNode 类型
+    // 然后，调用 ExecutorFactory::CreateExecutor 创建子计划的执行器
+    // 最后，使用执行上下文、TopN 计划节点和子执行器创建并返回一个 TopNExecutor 对象
     case PlanType::TopN: {
       const auto *topn_plan = dynamic_cast<const TopNPlanNode *>(plan.get());
       auto child = ExecutorFactory::CreateExecutor(exec_ctx, topn_plan->GetChildPlan());

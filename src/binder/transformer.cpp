@@ -42,34 +42,39 @@
 
 namespace bustub {
 
+// 保存解析树中的节点，PGList 是一个链表结构，用于存储解析树中的节点
 void Binder::SaveParseTree(duckdb_libpgquery::PGList *tree) {
   std::vector<std::unique_ptr<BoundStatement>> statements;
+  // 遍历 tree 链表中的所有节点
   for (auto entry = tree->head; entry != nullptr; entry = entry->next) {
+    // 将当前节点的数据指针 entry->data.ptr_value 解释为 duckdb_libpgquery::PGNode 类型的指针
+    // 并将其添加到 statement_nodes_ 向量中
     statement_nodes_.push_back(reinterpret_cast<duckdb_libpgquery::PGNode *>(entry->data.ptr_value));
   }
 }
 
+// 根据传入的 SQL 语句节点类型，将其绑定为相应的 BoundStatement 对象
 auto Binder::BindStatement(duckdb_libpgquery::PGNode *stmt) -> std::unique_ptr<BoundStatement> {
   switch (stmt->type) {
-    case duckdb_libpgquery::T_PGRawStmt:
+    case duckdb_libpgquery::T_PGRawStmt:  // 存储单个 SQL 语句原始解析树
       return BindStatement(reinterpret_cast<duckdb_libpgquery::PGRawStmt *>(stmt)->stmt);
-    case duckdb_libpgquery::T_PGCreateStmt:
+    case duckdb_libpgquery::T_PGCreateStmt:  // 创建表
       return BindCreate(reinterpret_cast<duckdb_libpgquery::PGCreateStmt *>(stmt));
-    case duckdb_libpgquery::T_PGInsertStmt:
+    case duckdb_libpgquery::T_PGInsertStmt:  // 插入数据
       return BindInsert(reinterpret_cast<duckdb_libpgquery::PGInsertStmt *>(stmt));
-    case duckdb_libpgquery::T_PGSelectStmt:
+    case duckdb_libpgquery::T_PGSelectStmt:  // 查询数据
       return BindSelect(reinterpret_cast<duckdb_libpgquery::PGSelectStmt *>(stmt));
-    case duckdb_libpgquery::T_PGExplainStmt:
+    case duckdb_libpgquery::T_PGExplainStmt:  // 解释执行计划
       return BindExplain(reinterpret_cast<duckdb_libpgquery::PGExplainStmt *>(stmt));
-    case duckdb_libpgquery::T_PGDeleteStmt:
+    case duckdb_libpgquery::T_PGDeleteStmt:  // 删除数据
       return BindDelete(reinterpret_cast<duckdb_libpgquery::PGDeleteStmt *>(stmt));
-    case duckdb_libpgquery::T_PGUpdateStmt:
+    case duckdb_libpgquery::T_PGUpdateStmt:  // 更新数据
       return BindUpdate(reinterpret_cast<duckdb_libpgquery::PGUpdateStmt *>(stmt));
-    case duckdb_libpgquery::T_PGIndexStmt:
+    case duckdb_libpgquery::T_PGIndexStmt:  // 创建索引
       return BindIndex(reinterpret_cast<duckdb_libpgquery::PGIndexStmt *>(stmt));
-    case duckdb_libpgquery::T_PGVariableSetStmt:
+    case duckdb_libpgquery::T_PGVariableSetStmt:  // 设置变量
       return BindVariableSet(reinterpret_cast<duckdb_libpgquery::PGVariableSetStmt *>(stmt));
-    case duckdb_libpgquery::T_PGVariableShowStmt:
+    case duckdb_libpgquery::T_PGVariableShowStmt:  // 显示变量
       return BindVariableShow(reinterpret_cast<duckdb_libpgquery::PGVariableShowStmt *>(stmt));
     default:
       throw NotImplementedException(NodeTagToString(stmt->type));

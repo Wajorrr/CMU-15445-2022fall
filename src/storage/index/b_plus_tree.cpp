@@ -15,7 +15,7 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
       comparator_(comparator),
       leaf_max_size_(leaf_max_size),
       internal_max_size_(internal_max_size) {
-  std::cout << "leaf_max_size_: " << leaf_max_size_ << ", leaf_max_size_: " << leaf_max_size_ << "\n\n";
+  // std::cout << "leaf_max_size_: " << leaf_max_size_ << ", leaf_max_size_: " << leaf_max_size_ << "\n\n";
 }
 
 /*
@@ -49,8 +49,8 @@ auto BPLUSTREE_TYPE::IsSafe(Page *page, Operation op) -> bool {  // 判断节点
   return node->GetSize() > node->GetMinSize();
 }
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::UnlockAndUnpin(Transaction *transaction, Operation op)
-    -> void {  // 将当前pageset中所有已有的page解锁以及unpin
+auto BPLUSTREE_TYPE::UnlockAndUnpin(Transaction *transaction,
+                                    Operation op) -> void {  // 将当前pageset中所有已有的page解锁以及unpin
   if (transaction == nullptr) {
     return;
   }
@@ -111,8 +111,8 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction, Operation op)
-    -> Page * {
+auto BPLUSTREE_TYPE::FindLeafPageRW(const KeyType &key, int left_right_most, Transaction *transaction,
+                                    Operation op) -> Page * {
   // 给定key，返回key所在/要插入的leaf page
   if (IsEmpty()) {
     return nullptr;

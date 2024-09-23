@@ -37,17 +37,23 @@ auto TableIterator::operator->() -> Tuple * {
   return tuple_;
 }
 
+// 用于将迭代器移动到下一个元组
 auto TableIterator::operator++() -> TableIterator & {
+  // 获取 table_heap_ 的 buffer_pool_manager_，并通过调用 FetchPage 方法获取当前页
   BufferPoolManager *buffer_pool_manager = table_heap_->buffer_pool_manager_;
   auto cur_page = static_cast<TablePage *>(buffer_pool_manager->FetchPage(tuple_->rid_.GetPageId()));
   BUSTUB_ENSURE(cur_page != nullptr, "BPM full");  // all pages are pinned
 
+  // 对当前页加读锁，以确保在读取过程中页不会被修改
   cur_page->RLatch();
   RID next_tuple_rid;
+  // 尝试获取当前页的下一个元组的 RID
   if (!cur_page->GetNextTupleRid(tuple_->rid_,
                                  &next_tuple_rid)) {  // end of this page
+    // 如果当前页已到达末尾，则进入一个循环，尝试获取下一页，直到找到一个包含元组的页
     while (cur_page->GetNextPageId() != INVALID_PAGE_ID) {
       auto next_page = static_cast<TablePage *>(buffer_pool_manager->FetchPage(cur_page->GetNextPageId()));
+      // 释放当前页的读锁并取消固定页
       cur_page->RUnlatch();
       buffer_pool_manager->UnpinPage(cur_page->GetTablePageId(), false);
       cur_page = next_page;
@@ -57,18 +63,22 @@ auto TableIterator::operator++() -> TableIterator & {
       }
     }
   }
+  // 找到下一个元组后，更新 tuple_ 的 RID
   tuple_->rid_ = next_tuple_rid;
 
+  // 如果新的 tuple_ 不是结束迭代器，则尝试从 table_heap_ 中获取元组
   if (*this != table_heap_->End()) {
     // DO NOT ACQUIRE READ LOCK twice in a single thread otherwise it may deadlock.
     // See https://users.rust-lang.org/t/how-bad-is-the-potential-deadlock-mentioned-in-rwlocks-document/67234
     if (!table_heap_->GetTuple(tuple_->rid_, tuple_, txn_, false)) {
+      // 获取失败，则抛出异常
       cur_page->RUnlatch();
       buffer_pool_manager->UnpinPage(cur_page->GetTablePageId(), false);
       throw bustub::Exception("read non-existing tuple");
     }
   }
   // release until copy the tuple
+  // 释放当前页的读锁并取消固定页，然后返回更新后的迭代器自身
   cur_page->RUnlatch();
   buffer_pool_manager->UnpinPage(cur_page->GetTablePageId(), false);
   return *this;

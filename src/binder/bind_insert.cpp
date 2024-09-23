@@ -21,6 +21,8 @@
 
 namespace bustub {
 
+// 将一个 PGInsertStmt 类型的指针 pg_stmt 绑定到一个 InsertStatement 对象
+// 并返回一个指向该对象的唯一指针（std::unique_ptr<InsertStatement>）
 auto Binder::BindInsert(duckdb_libpgquery::PGInsertStmt *pg_stmt) -> std::unique_ptr<InsertStatement> {
   if (pg_stmt->cols != nullptr) {
     throw NotImplementedException("insert only supports all columns, don't specify columns");

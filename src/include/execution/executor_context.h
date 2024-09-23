@@ -24,6 +24,7 @@ namespace bustub {
 /**
  * ExecutorContext stores all the context necessary to run an executor.
  */
+// 用于存储执行器运行所需的所有上下文信息
 class ExecutorContext {
  public:
   /**
@@ -34,6 +35,7 @@ class ExecutorContext {
    * @param txn_mgr The transaction manager that the executor uses
    * @param lock_mgr The lock manager that the executor uses
    */
+  // 五个参数：transaction、catalog、bpm、txn_mgr 和 lock_mgr
   ExecutorContext(Transaction *transaction, Catalog *catalog, BufferPoolManager *bpm, TransactionManager *txn_mgr,
                   LockManager *lock_mgr)
       : transaction_(transaction), catalog_{catalog}, bpm_{bpm}, txn_mgr_(txn_mgr), lock_mgr_(lock_mgr) {}
@@ -43,21 +45,27 @@ class ExecutorContext {
   DISALLOW_COPY_AND_MOVE(ExecutorContext);
 
   /** @return the running transaction */
+  // 返回当前运行的事务
   auto GetTransaction() const -> Transaction * { return transaction_; }
 
   /** @return the catalog */
+  // 返回数据库目录
   auto GetCatalog() -> Catalog * { return catalog_; }
 
   /** @return the buffer pool manager */
+  // 返回缓冲池管理器
   auto GetBufferPoolManager() -> BufferPoolManager * { return bpm_; }
 
   /** @return the log manager - don't worry about it for now */
+  // 返回日志管理器
   auto GetLogManager() -> LogManager * { return nullptr; }
 
   /** @return the lock manager */
+  // 返回锁管理器
   auto GetLockManager() -> LockManager * { return lock_mgr_; }
 
   /** @return the transaction manager */
+  // 返回事务管理器
   auto GetTransactionManager() -> TransactionManager * { return txn_mgr_; }
 
  private:

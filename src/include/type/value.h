@@ -24,11 +24,13 @@
 
 namespace bustub {
 
+// 将布尔值转换为 CmpBool 枚举类型
 inline auto GetCmpBool(bool boolean) -> CmpBool { return boolean ? CmpBool::CmpTrue : CmpBool::CmpFalse; }
 
 // A value is an abstract class that represents a view over SQL data stored in
 // some materialized state. All values have a type and comparison functions, but
 // subclasses implement other type-specific functionality.
+// 用于表示 SQL 数据在某种物化状态下的视图
 class Value {
   // Friend Type classes
   friend class Type;
@@ -44,6 +46,7 @@ class Value {
   friend class VarlenType;
 
  public:
+  // 使用给定的 TypeId 初始化 Value 对象
   explicit Value(const TypeId type) : manage_data_(false), type_id_(type) { size_.len_ = BUSTUB_VALUE_NULL; }
   // BOOLEAN and TINYINT
   Value(TypeId type, int8_t i);
@@ -67,6 +70,7 @@ class Value {
   auto operator=(Value other) -> Value &;
   ~Value();
   // NOLINTNEXTLINE
+  // 用于交换两个 Value 对象的内容
   friend void Swap(Value &first, Value &second) {
     std::swap(first.value_, second.value_);
     std::swap(first.size_, second.size_);
@@ -74,12 +78,14 @@ class Value {
     std::swap(first.type_id_, second.type_id_);
   }
   // check whether value is integer
+  // 用于检查 Value 对象是否为整数类型
   auto CheckInteger() const -> bool;
+  // 两个 Value 对象是否可以比较
   auto CheckComparable(const Value &o) const -> bool;
 
-  // Get the type of this value
+  // 用于获取 Value 对象的类型、长度和数据
+  //  Get the type of this value
   inline auto GetTypeId() const -> TypeId { return type_id_; }
-
   // Get the length of the variable length data
   inline auto GetLength() const -> uint32_t { return Type::GetInstance(type_id_)->GetLength(*this); }
   // Access the raw variable length data
@@ -90,10 +96,12 @@ class Value {
     return *reinterpret_cast<const T *>(&value_);
   }
 
+  // 用于将 Value 对象的值转换为指定类型
   inline auto CastAs(const TypeId type_id) const -> Value {
     return Type::GetInstance(type_id_)->CastAs(*this, type_id);
   }
   // Comparison Methods
+  // 用于比较两个 Value 对象
   inline auto CompareEquals(const Value &o) const -> CmpBool {
     return Type::GetInstance(type_id_)->CompareEquals(*this, o);
   }
@@ -114,6 +122,7 @@ class Value {
   }
 
   // Other mathematical functions
+  // 对 Value 对象执行数学运算
   inline auto Add(const Value &o) const -> Value { return Type::GetInstance(type_id_)->Add(*this, o); }
   inline auto Subtract(const Value &o) const -> Value { return Type::GetInstance(type_id_)->Subtract(*this, o); }
   inline auto Multiply(const Value &o) const -> Value { return Type::GetInstance(type_id_)->Multiply(*this, o); }
@@ -123,6 +132,7 @@ class Value {
   inline auto Max(const Value &o) const -> Value { return Type::GetInstance(type_id_)->Max(*this, o); }
   inline auto Sqrt() const -> Value { return Type::GetInstance(type_id_)->Sqrt(*this); }
 
+  // 用于处理空值和零值
   inline auto OperateNull(const Value &o) const -> Value { return Type::GetInstance(type_id_)->OperateNull(*this, o); }
   inline auto IsZero() const -> bool { return Type::GetInstance(type_id_)->IsZero(*this); }
   inline auto IsNull() const -> bool { return size_.len_ == BUSTUB_VALUE_NULL; }
@@ -132,6 +142,7 @@ class Value {
   // space, or whether we must store only a reference to this value. If inlined
   // is false, we may use the provided data pool to allocate space for this
   // value, storing a reference into the allocated pool space in the storage.
+  // 用于将 Value 对象序列化到存储空间，并从存储空间反序列化
   inline void SerializeTo(char *storage) const { Type::GetInstance(type_id_)->SerializeTo(*this, storage); }
 
   // Deserialize a value of the given type from the given storage space.
@@ -146,6 +157,7 @@ class Value {
 
  protected:
   // The actual value item
+  // 用于存储 Value 对象的实际数据、长度、是否管理数据的标志和数据类型
   union Val {
     int8_t boolean_;
     int8_t tinyint_;

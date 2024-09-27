@@ -316,11 +316,11 @@ class LockManager {
   auto GrantLock(const std::shared_ptr<LockRequest> &lock_request,
                  const std::shared_ptr<LockRequestQueue> &lock_request_queue) -> bool;
 
-  auto InsertOrDeleteTableLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert) 
-                                  -> void;
+  auto InsertOrDeleteTableLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert)
+      -> void;
 
-  auto InsertOrDeleteRowLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert) 
-                                -> void;
+  auto InsertOrDeleteRowLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert)
+      -> void;
 
   auto InsertRowLockSet(const std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>> &lock_set,
                         const table_oid_t &oid, const RID &rid) -> void {

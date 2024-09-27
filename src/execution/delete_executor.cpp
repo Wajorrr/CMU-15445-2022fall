@@ -33,10 +33,10 @@ void DeleteExecutor::Init() {
   try {
     auto status = lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
     if (!status) {
-      // throw ExecutionException{"Delete Executor Get Table Lock Failed"};
+      throw ExecutionException{"Delete Executor Get Table Lock Failed"};
     }
   } catch (TransactionAbortException &e) {
-    // throw ExecutionException{"Delete Executor Get Table Lock Failed" + e.GetInfo()};
+    throw ExecutionException{"Delete Executor Get Table Lock Failed" + e.GetInfo()};
   }
 }
 
@@ -63,10 +63,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       // 尝试获取该行的排他锁
       auto status = lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, plan_->TableOid(), child_rid);
       if (!status) {
-        // throw ExecutionException{"Delete Executor Get Row Lock Failed"};
+        throw ExecutionException{"Delete Executor Get Row Lock Failed"};
       }
     } catch (TransactionAbortException &e) {
-      // throw ExecutionException{"Delete Executor Get Row Lock Failed" + e.GetInfo()};
+      throw ExecutionException{"Delete Executor Get Row Lock Failed" + e.GetInfo()};
     }
     // 代码调用表的 MarkDelete 方法标记该行已删除
     table_info->table_->MarkDelete(child_rid, exec_ctx_->GetTransaction());

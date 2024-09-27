@@ -33,10 +33,10 @@ void InsertExecutor::Init() {
   try {
     auto status = lock_manager->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, plan_->TableOid());
     if (!status) {
-      // throw ExecutionException{"Insert Executor Get Table Lock Failed"};
+      throw ExecutionException{"Insert Executor Get Table Lock Failed"};
     }
   } catch (TransactionAbortException &e) {
-    // throw ExecutionException{"Insert Executor Get Table Lock Failed" + e.GetInfo()};
+    throw ExecutionException{"Insert Executor Get Table Lock Failed" + e.GetInfo()};
   }
 }
 
@@ -62,10 +62,10 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     try {
       auto status = lock_manager->LockRow(txn, LockManager::LockMode::EXCLUSIVE, plan_->TableOid(), *(rid));
       if (!status) {
-        // throw bustub::ExecutionException("Insert Executor Get Row Lock Failed");
+        throw ExecutionException{"Insert Executor Get Row Lock Failed"};
       }
     } catch (TransactionAbortException &e) {
-      // throw ExecutionException{"Insert Executor Get Row Lock Failed" + e.GetInfo()};
+      throw ExecutionException{"Insert Executor Get Row Lock Failed" + e.GetInfo()};
     }
 
     // 遍历所有与表相关的索引，并将插入的元组更新到每个索引中

@@ -17,6 +17,7 @@
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -35,6 +36,8 @@ class TransactionManager;
  */
 class LockManager {
  public:
+  // 支持多种锁模式，包括共享锁（SHARED）、排他锁（EXCLUSIVE）、意向共享锁（INTENTION_SHARED）
+  // 意向排他锁（INTENTION_EXCLUSIVE）和共享意向排他锁（SHARED_INTENTION_EXCLUSIVE）
   enum class LockMode { SHARED, EXCLUSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, SHARED_INTENTION_EXCLUSIVE };
 
   /**
@@ -42,40 +45,44 @@ class LockManager {
    * This could be a lock request on a table OR a row.
    * For table lock requests, the rid_ attribute would be unused.
    */
+  // 表示一个锁请求，可以是对表的锁请求或对行的锁请求
   class LockRequest {
    public:
+    // 对于表锁请求，rid_ 属性未使用
     LockRequest(txn_id_t txn_id, LockMode lock_mode, table_oid_t oid) /** Table lock request */
         : txn_id_(txn_id), lock_mode_(lock_mode), oid_(oid) {}
     LockRequest(txn_id_t txn_id, LockMode lock_mode, table_oid_t oid, RID rid) /** Row lock request */
         : txn_id_(txn_id), lock_mode_(lock_mode), oid_(oid), rid_(rid) {}
 
     /** Txn_id of the txn requesting the lock */
-    txn_id_t txn_id_;
+    txn_id_t txn_id_;  // 事务 ID
     /** Locking mode of the requested lock */
-    LockMode lock_mode_;
+    LockMode lock_mode_;  // 锁模式
     /** Oid of the table for a table lock; oid of the table the row belong to for a row lock */
-    table_oid_t oid_;
+    table_oid_t oid_;  // 表的 OID
     /** Rid of the row for a row lock; unused for table locks */
-    RID rid_;
+    RID rid_;  // 行的 RID
     /** Whether the lock has been granted or not */
-    bool granted_{false};
+    bool granted_{false};  // 锁是否已授予
   };
 
+  // 表示一个锁请求队列，用于存储对同一资源（表或行）的锁请求
   class LockRequestQueue {
    public:
     /** List of lock requests for the same resource (table or row) */
-    std::list<LockRequest *> request_queue_;
+    std::list<std::shared_ptr<LockRequest>> request_queue_;  // 包含一个锁请求列表
     /** For notifying blocked transactions on this rid */
-    std::condition_variable cv_;
+    std::condition_variable cv_;  // 一个条件变量用于通知被阻塞的事务
     /** txn_id of an upgrading transaction (if any) */
-    txn_id_t upgrading_ = INVALID_TXN_ID;
+    txn_id_t upgrading_ = INVALID_TXN_ID;  // 一个用于升级事务的事务 ID
     /** coordination */
-    std::mutex latch_;
+    std::mutex latch_;  // 一个互斥锁用于协调
   };
 
   /**
    * Creates a new lock manager configured for the deadlock detection policy.
    */
+  // 初始化死锁检测线程，并启动周期性死锁检测
   LockManager() {
     enable_cycle_detection_ = true;
     cycle_detection_thread_ = new std::thread(&LockManager::RunCycleDetection, this);
@@ -217,6 +224,7 @@ class LockManager {
    * @param oid the table_oid_t of the table to be locked in lock_mode
    * @return true if the upgrade is successful, false otherwise
    */
+  // 获取表的锁
   auto LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) noexcept(false) -> bool;
 
   /**
@@ -230,6 +238,7 @@ class LockManager {
    * @param oid the table_oid_t of the table to be unlocked
    * @return true if the unlock is successful, false otherwise
    */
+  // 释放表的锁
   auto UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool;
 
   /**
@@ -247,6 +256,7 @@ class LockManager {
    * @param rid the RID of the row to be locked
    * @return true if the upgrade is successful, false otherwise
    */
+  // 获取行的锁
   auto LockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
 
   /**
@@ -262,6 +272,7 @@ class LockManager {
    * @param rid the RID of the row to be unlocked
    * @return true if the unlock is successful, false otherwise
    */
+  // 释放行的锁
   auto UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid) -> bool;
 
   /*** Graph API ***/
@@ -271,6 +282,7 @@ class LockManager {
    * @param t1 transaction waiting for a lock
    * @param t2 transaction being waited for
    */
+  // 添加一个边从 t1 -> t2 到等待图
   auto AddEdge(txn_id_t t1, txn_id_t t2) -> void;
 
   /**
@@ -278,6 +290,7 @@ class LockManager {
    * @param t1 transaction waiting for a lock
    * @param t2 transaction being waited for
    */
+  // 从等待图中删除一个边从 t1 -> t2
   auto RemoveEdge(txn_id_t t1, txn_id_t t2) -> void;
 
   /**
@@ -285,35 +298,110 @@ class LockManager {
    * @param[out] txn_id if the graph has a cycle, will contain the newest transaction ID
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
    */
+  // 检查图是否有环，如果有环，则返回环中最新的事务 ID
   auto HasCycle(txn_id_t *txn_id) -> bool;
 
   /**
    * @return all edges in current waits_for graph
    */
+  // 返回当前等待图中的所有边
   auto GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>>;
 
   /**
    * Runs cycle detection in the background.
    */
+  // 在后台运行循环检测
   auto RunCycleDetection() -> void;
+
+  auto GrantLock(const std::shared_ptr<LockRequest> &lock_request,
+                 const std::shared_ptr<LockRequestQueue> &lock_request_queue) -> bool;
+
+  auto InsertOrDeleteTableLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert) 
+                                  -> void;
+
+  auto InsertOrDeleteRowLockSet(Transaction *txn, const std::shared_ptr<LockRequest> &lock_request, bool insert) 
+                                -> void;
+
+  auto InsertRowLockSet(const std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>> &lock_set,
+                        const table_oid_t &oid, const RID &rid) -> void {
+    auto row_lock_set = lock_set->find(oid);
+    if (row_lock_set == lock_set->end()) {
+      lock_set->emplace(oid, std::unordered_set<RID>{});
+      row_lock_set = lock_set->find(oid);
+    }
+    row_lock_set->second.emplace(rid);
+  }
+
+  auto DeleteRowLockSet(const std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>> &lock_set,
+                        const table_oid_t &oid, const RID &rid) -> void {
+    auto row_lock_set = lock_set->find(oid);
+    if (row_lock_set == lock_set->end()) {
+      return;
+    }
+    row_lock_set->second.erase(rid);
+  }
+
+  auto Dfs(txn_id_t txn_id) -> bool {
+    if (safe_set_.find(txn_id) != safe_set_.end()) {
+      return false;
+    }
+    active_set_.insert(txn_id);
+
+    // 检查当前事务的所有边，即等待当前事务的所有事务
+    std::vector<txn_id_t> &next_node_vector = waits_for_[txn_id];
+    // 对后继事务进行排序
+    std::sort(next_node_vector.begin(), next_node_vector.end());
+    // 遍历后继事务，继续DFS
+    for (txn_id_t const next_node : next_node_vector) {
+      // 如果后继事务在活跃集中，则存在环
+      if (active_set_.find(next_node) != active_set_.end()) {
+        return true;
+      }
+      if (Dfs(next_node)) {
+        return true;
+      }
+    }
+
+    // 尚未检查到环，进行递归回溯
+    active_set_.erase(txn_id);
+    safe_set_.insert(txn_id);
+    return false;
+  }
+
+  auto DeleteNode(txn_id_t txn_id) -> void;
 
  private:
   /** Fall 2022 */
   /** Structure that holds lock requests for a given table oid */
+  // 用于存储表的锁请求队列
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
   /** Coordination */
+  // 协调访问的互斥锁
   std::mutex table_lock_map_latch_;
 
   /** Structure that holds lock requests for a given RID */
+  // 用于存储行的锁请求队列
   std::unordered_map<RID, std::shared_ptr<LockRequestQueue>> row_lock_map_;
   /** Coordination */
+  // 协调访问的互斥锁
   std::mutex row_lock_map_latch_;
 
+  // 控制死锁检测的原子变量
   std::atomic<bool> enable_cycle_detection_;
+  // 死锁检测线程
   std::thread *cycle_detection_thread_;
   /** Waits-for graph representation. */
+  // 等待图的表示
   std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  // 用于协调访问等待图的互斥锁
   std::mutex waits_for_latch_;
+
+  std::set<txn_id_t> safe_set_;
+  std::set<txn_id_t> txn_set_;
+  std::unordered_set<txn_id_t> active_set_;
+
+  std::unordered_map<txn_id_t, RID> map_txn_rid_;
+  std::unordered_map<txn_id_t, table_oid_t> map_txn_oid_;
 };
 
 }  // namespace bustub
